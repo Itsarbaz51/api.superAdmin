@@ -14,7 +14,7 @@ dotenv.config({ path: "./.env" });
       console.error("DB connection error:", error);
     }
     app.listen(process.env.PORT, () => {
-      console.log(`HTTP server running on port 3000 ${process.env.PORT}`);
+      console.log(`HTTP server running on port ${process.env.PORT}`);
     });
   } catch (error) {
     console.error("Server startup failed:", error);
