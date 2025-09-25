@@ -5,6 +5,7 @@ import {
 } from "../middlewares/auth.middleware.js";
 import {
   createRole,
+  deleteRole,
   getAllRoles,
   updateRole,
 } from "../controllers/role.controller.js";
@@ -19,7 +20,7 @@ router.post(
 );
 
 router.put(
-  "/update-role",
+  "/update-role/:id",
   isAuthenticated,
   authorizeRoles(["SUPER_ADMIN"]),
   updateRole
@@ -28,15 +29,21 @@ router.put(
 router.get(
   "/get-all-role",
   isAuthenticated,
-  authorizeRoles(["SUPER_ADMIN"]),
+  authorizeRoles([
+    "SUPER_ADMIN",
+    "ADMIN",
+    "STATE_HEAD",
+    "MASTER_DISTRIBUTOR",
+    "DISTRIBUTOR",
+  ]),
   getAllRoles
 );
 
 router.delete(
-  "/delete-role",
+  "/delete-role/:id",
   isAuthenticated,
   authorizeRoles(["SUPER_ADMIN"]),
-  getAllRoles
+  deleteRole
 );
 
 export default router;

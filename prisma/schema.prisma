@@ -1,0 +1,258 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+model role {
+    id   String @id @default(uuid())
+    name String
+
+    @@map("roles")
+}
+
+model Service {
+    id          String        @id @default(uuid())
+    name        String        @unique
+    description String?       @db.LongText
+    svgImage    String?       @db.LongText
+    createdAt   DateTime      @default(now())
+    updatedAt   DateTime      @updatedAt
+    users       UserService[]
+
+    @@map("services")
+}
+
+model UserService {
+    id        String   @id @default(cuid())
+    userId    String
+    serviceId String
+    user      User     @relation(fields: [userId], references: [id])
+    service   Service  @relation(fields: [serviceId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, serviceId])
+    @@map("user_services")
+}
+
+model User {
+    id            String        @id @default(cuid())
+    name          String
+    email         String        @unique
+    phone         String        @unique
+    password      String
+    pin           String        @default("0000")
+    role          UserRole
+    walletBalance Float         @default(0)
+    parentId      String?
+    subParentId   String?
+    isDeleted     Boolean       @default(false)
+    isKyc         Boolean       @default(false)
+    status        UserStatus    @default(IN_ACTIVE)
+    isAuthorized  Boolean       @default(false)
+    createdAt     DateTime      @default(now())
+    updatedAt     DateTime      @updatedAt
+    bankDetails   BankDetail[]
+    kycDetails    KycDetail[]
+    auditLogs     AuditLog[]
+    apiKeys       ApiKey[]
+    Wallet        Wallet?
+    Commission    Commission[]
+    Payout        Payout[]
+    WalletTopup   WalletTopup[]
+    services      UserService[]
+
+    @@map("users")
+}
+
+model KycDetail {
+    id                String    @id @default(cuid())
+    panNumber         String    @unique @db.VarChar(10)
+    aadhaarNumber     String    @unique @db.VarChar(12)
+    panImage          String
+    aadhaarImageFront String
+    aadhaarImageBack  String
+    fatherName        String
+    dob               String
+    homeAddress       String    @db.LongText
+    kycStatus         KycStatus @default(PENDING)
+    shopName          String    @db.LongText
+    district          String
+    pinCode           String
+    state             String
+    userId            String
+    shopAddress       String    @db.LongText
+    shopAddressImage  String
+    createdAt         DateTime  @default(now())
+    updatedAt         DateTime  @updatedAt
+    User              User      @relation(fields: [userId], references: [id])
+
+    @@map("kyc_details")
+}
+
+model BankDetail {
+    id            String   @id @default(cuid())
+    userId        String
+    phone         String?
+    accountHolder String
+    accountNumber String   @unique
+    ifscCode      String
+    bankName      String?
+    passbookImage String?
+    isVerified    Boolean  @default(false)
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+
+    user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    Payout Payout[]
+
+    @@unique([userId, accountNumber])
+    @@map("bank_details")
+}
+
+model Wallet {
+    id        String   @id @default(cuid())
+    userId    String   @unique
+    balance   Float    @default(0)
+    user      User     @relation(fields: [userId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("wallet")
+}
+
+model WalletTopup {
+    id           String      @id @default(cuid())
+    userId       String
+    orderId      String      @unique
+    paymentId    String?     @unique
+    amount       Float
+    provider     String
+    paymentImage String?
+    status       TopupStatus @default(PENDING)
+    createdAt    DateTime    @default(now())
+    updatedAt    DateTime    @updatedAt
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("wallet_topup")
+}
+
+enum TopupStatus {
+    PENDING
+    VERIFIED
+    REJECTED
+}
+
+model UserLimit {
+    id        String   @id @default(cuid())
+    userId    String   @unique
+    maxLimit  Float    @default(0)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("user_limit")
+}
+
+model Commission {
+    id        String             @id @default(cuid())
+    adminId   String
+    role      UserRole
+    service   CommissionServices
+    from      Float
+    to        Float
+    value     Float
+    type      CommissionType
+    createdAt DateTime           @default(now())
+    updatedAt DateTime           @updatedAt
+    User      User?              @relation(fields: [adminId], references: [id])
+
+    @@map("commission")
+}
+
+enum CommissionType {
+    FIXED
+    PERCENT
+}
+
+enum CommissionServices {
+    IMPS
+    NEFT
+}
+
+model Payout {
+    id        String    @id @default(cuid())
+    userId    String
+    bankId    String
+    amount    Float
+    status    TxnStatus @default(PENDING)
+    txnId     String
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+
+    user       User       @relation(fields: [userId], references: [id])
+    bankDetail BankDetail @relation(fields: [bankId], references: [id])
+
+    @@map("payout")
+}
+
+model AuditLog {
+    id          String   @id @default(cuid())
+    userId      String?
+    action      String
+    description String?
+    ipAddress   String?
+    userAgent   String?
+    createdAt   DateTime @default(now())
+
+    user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+    @@map("audit_logs")
+}
+
+model ApiKey {
+    id        String    @id @default(cuid())
+    userId    String
+    key       String    @unique
+    name      String
+    isActive  Boolean   @default(true)
+    createdAt DateTime  @default(now())
+    expiresAt DateTime?
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("api_keys")
+}
+
+// Enums
+enum UserRole {
+    SUPER_ADMIN
+    API_HOLDER
+    ADMIN
+    STATE_HOLDER
+    MASTER_DISTRIBUTOR
+    DISTRIBUTOR
+    AGENT
+}
+
+enum UserStatus {
+    IN_ACTIVE
+    ACTIVE
+    DELETED
+}
+
+enum KycStatus {
+    PENDING
+    VERIFIED
+    REJECTED
+}
+
+enum TxnStatus {
+    PENDING
+    SUCCESS
+    FAILED
+}

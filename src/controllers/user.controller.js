@@ -27,17 +27,17 @@ export const createUser = asyncHandler(async (req, res) => {
   }
 
   const hashedPassword = await hashPassword(password);
-  const pinCode = Math.floor(100000 + Math.random() * 900000);
+  const pinCode = Math.floor(100000 + Math.random() * 900000).toString();
 
   const newUser = await Prisma.user.create({
     data: {
       name,
       email,
       phone,
+      parentId: userExists.id,
       pin: pinCode,
       password: hashedPassword,
       role,
-      isActive: true,
       isAuthorized: true,
       status: status ? status : "IN_ACTIVE",
     },
@@ -101,7 +101,7 @@ export const updateUserById = asyncHandler(async (req, res) => {
     return ApiError.send(res, 400, "User ID is required");
   }
 
-  const { name, email, phone, role, password, status } = req.body;
+  const { name, email, phone, role, status } = req.body;
   if (!name && !email && !phone && !status) {
     return ApiError.send(res, 403, "At least one field is required to update");
   }
@@ -139,18 +139,21 @@ export const updateUserById = asyncHandler(async (req, res) => {
 export const deleteUserById = asyncHandler(async (req, res) => {
   const userExists = await checkUserAuth(req, res, "SUPER_ADMIN");
   if (!userExists) return;
+
   const { id } = req.params;
-  if (!id) {
-    return ApiError.send(res, 400, "User ID is required");
-  }
+  if (!id) return ApiError.send(res, 400, "User ID is required");
+
   const user = await Prisma.user.findUnique({ where: { id } });
-  if (!user) {
-    return ApiError.send(res, 404, "User not found");
-  }
-  await Prisma.user.delete({ where: { id } });
+  if (!user) return ApiError.send(res, 404, "User not found");
+
+  await Prisma.user.update({
+    where: { id },
+    data: { isDeleted: true, status: "DELETED" },
+  });
+
   return res
     .status(200)
-    .json(new ApiResponse(200, "User deleted successfully"));
+    .json(new ApiResponse(200, "User soft deleted successfully"));
 });
 
 // ================ Update user status by ID and super admin ================

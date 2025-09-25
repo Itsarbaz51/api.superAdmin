@@ -112,13 +112,56 @@ export const deleteRole = asyncHandler(async (req, res) => {
 
 // ================= get all roles =========================
 export const getAllRoles = asyncHandler(async (req, res) => {
-  const userExists = await checkUserAuth(req, res, "SUPER_ADMIN");
+  const userExists = await checkUserAuth(req, res, req.role);
   if (!userExists) return;
 
-  const roles = await Prisma.role.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-
+  let roles;
+  if (req.role === "SUPER_ADMIN") {
+    roles = await Prisma.role.findMany();
+  } else if (req.role === "ADMIN") {
+    roles = await Prisma.role.findMany({
+      where: {
+        name: {
+          not: "SUPER_ADMIN",
+          not: "ADMIN",
+        },
+      },
+    });
+  } else if (req.role === "STATE_HEAD") {
+    roles = await Prisma.role.findMany({
+      where: {
+        name: {
+          not: "SUPER_ADMIN",
+          not: "ADMIN",
+          not: "STATE_HEAD",
+        },
+      },
+    });
+  } else if (req.role === "MASTER_DISTRIBUTOR") {
+    roles = await Prisma.role.findMany({
+      where: {
+        name: {
+          not: "SUPER_ADMIN",
+          not: "ADMIN",
+          not: "STATE_HEAD",
+          not: "MASTER_DISTRIBUTOR",
+        },
+      },
+    });
+  } else if (req.role === "DISTRIBUTOR") {
+    roles = await Prisma.role.findMany({
+      where: {
+        name: {
+          not: "SUPER_ADMIN",
+          not: "ADMIN",
+          not: "STATE_HEAD",
+          not: "MASTER_DISTRIBUTOR",
+          not: "DISTRIBUTOR",
+        },
+      },
+    });
+  }
+  
   if (!roles || roles.length === 0) {
     return ApiError.send(res, 404, "No roles found");
   }

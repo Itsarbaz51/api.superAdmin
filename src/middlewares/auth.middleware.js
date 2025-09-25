@@ -1,11 +1,12 @@
 import jwt from "jsonwebtoken";
 import ApiError from "../utils/ApiError.js";
 import asyncHandler from "../utils/AsyncHandler.js";
+import Prisma from "../db/db.js";
 
 export const isAuthenticated = asyncHandler(async (req, res, next) => {
   const token =
-    req.cookies.accessToken ||
-    req.headers["authorization"].replace("Bearer ", "");
+    req?.cookies?.accessToken ||
+    req?.headers["authorization"]?.replace("Bearer ", "");
 
   if (!token) {
     return ApiError.send(res, 401, "Unauthorized: No token provided");
@@ -18,25 +19,25 @@ export const isAuthenticated = asyncHandler(async (req, res, next) => {
     return ApiError.send(res, 401, "Unauthorized: Invalid/Expired token");
   }
 
-  const userExsits = await Prisma.user.findUnique({
+  const userExists = await Prisma.user.findUnique({
     where: { id: decoded.id },
   });
 
-  if (!userExsits) {
+  if (!userExists) {
     return ApiError.send(res, 401, "Unauthorized: Invalid token user");
   }
 
   req.user = {
-    id: user.id,
-    email: user.email,
-    role: user.role,
+    id: userExists.id,
+    email: userExists.email,
+    role: userExists.role,
   };
 
-  next();
+  return next();
 });
 
 export const authorizeRoles = (allowedRoles = []) =>
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
     const userRole = req.user.role;
 
     if (!userRole) {
@@ -47,5 +48,5 @@ export const authorizeRoles = (allowedRoles = []) =>
       return ApiError.send(res, 403, "Forbidden: Insufficient privileges");
     }
 
-    next();
+    return next();
   });

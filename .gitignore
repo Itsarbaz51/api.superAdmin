@@ -2,7 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=node
 
 # #Temprory ignore files and folder 
-# prisma/
+# prisma
 # app.js
 # lib.js
 # public/

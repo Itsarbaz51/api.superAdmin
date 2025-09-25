@@ -33,7 +33,6 @@ export const checkUserAuth = async (req, res, requiredRole = null) => {
 
   if (requiredRole && user.role !== requiredRole) {
     ApiError.send(res, 403, "Do not have permission");
-    return null;
   }
 
   return userExists;

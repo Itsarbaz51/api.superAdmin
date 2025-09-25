@@ -30,7 +30,7 @@ router.get(
 );
 
 router.put(
-  "/update-service",
+  "/update-service/:id",
   isAuthenticated,
   authorizeRoles(["SUPER_ADMIN"]),
   updateService
@@ -45,7 +45,7 @@ router.delete(
 
 // User <-> Service mapping
 router.post(
-  "/assign-service",
+  "/assign-service-user",
   isAuthenticated,
   authorizeRoles(["SUPER_ADMIN"]),
   assignServiceToUser

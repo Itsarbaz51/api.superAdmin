@@ -42,7 +42,8 @@ export const updateService = asyncHandler(async (req, res) => {
   const userExists = await checkUserAuth(req, res, "SUPER_ADMIN");
   if (!userExists) return;
 
-  const { id, name, description, svgImage } = req.body;
+  const { id } = req.params;
+  const { name, description, svgImage } = req.body;
 
   if (!id) return ApiError.send(res, 400, "Service id is required");
 
