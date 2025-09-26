@@ -7,66 +7,73 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model role {
-    id   String @id @default(uuid())
-    name String
+model Role {
+    id          String       @id @default(uuid())
+    name        String       @unique
+    users       User[]
+    commissions Commission[]
 
     @@map("roles")
 }
 
+model User {
+    id            String     @id @default(cuid())
+    name          String
+    email         String     @unique
+    phone         String     @unique
+    password      String
+    domainName    String     @unique
+    roleId        String
+    parentId      String?    @unique
+    subParentId   String?    @unique
+    walletBalance Float      @default(0)
+    status        UserStatus @default(IN_ACTIVE)
+    isDeleted     Boolean    @default(false)
+    isKycVerified Boolean    @default(false)
+    isAuthorized  Boolean    @default(false)
+    createdAt     DateTime   @default(now())
+    updatedAt     DateTime   @updatedAt
+
+    // Relations
+    role        Role          @relation(fields: [roleId], references: [id])
+    bankDetails BankDetail?
+    kycDetails  KycDetail?
+    wallet      Wallet?
+    logs        UserLog[]
+    services    UserService[]
+    commissions Commission[]
+    payouts     Payout[]
+    topups      WalletTopup[]
+
+    @@map("users")
+}
+
 model Service {
-    id          String        @id @default(uuid())
-    name        String        @unique
-    description String?       @db.LongText
-    svgImage    String?       @db.LongText
-    createdAt   DateTime      @default(now())
-    updatedAt   DateTime      @updatedAt
+    id          String   @id @default(uuid())
+    name        String   @unique
+    description String?  @db.LongText
+    svgImage    String?  @db.LongText
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
     users       UserService[]
+    commissions Commission[]
 
     @@map("services")
 }
 
 model UserService {
     id        String   @id @default(cuid())
-    userId    String
+    userId    String   @unique
     serviceId String
-    user      User     @relation(fields: [userId], references: [id])
-    service   Service  @relation(fields: [serviceId], references: [id])
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
+    user    User    @relation(fields: [userId], references: [id])
+    service Service @relation(fields: [serviceId], references: [id])
+
     @@unique([userId, serviceId])
     @@map("user_services")
-}
-
-model User {
-    id            String        @id @default(cuid())
-    name          String
-    email         String        @unique
-    phone         String        @unique
-    password      String
-    pin           String        @default("0000")
-    role          UserRole
-    walletBalance Float         @default(0)
-    parentId      String?
-    subParentId   String?
-    isDeleted     Boolean       @default(false)
-    isKyc         Boolean       @default(false)
-    status        UserStatus    @default(IN_ACTIVE)
-    isAuthorized  Boolean       @default(false)
-    createdAt     DateTime      @default(now())
-    updatedAt     DateTime      @updatedAt
-    bankDetails   BankDetail[]
-    kycDetails    KycDetail[]
-    auditLogs     AuditLog[]
-    apiKeys       ApiKey[]
-    Wallet        Wallet?
-    Commission    Commission[]
-    Payout        Payout[]
-    WalletTopup   WalletTopup[]
-    services      UserService[]
-
-    @@map("users")
 }
 
 model KycDetail {
@@ -79,38 +86,38 @@ model KycDetail {
     fatherName        String
     dob               String
     homeAddress       String    @db.LongText
-    kycStatus         KycStatus @default(PENDING)
     shopName          String    @db.LongText
     district          String
-    pinCode           String
     state             String
-    userId            String
+    pinCode           String
     shopAddress       String    @db.LongText
     shopAddressImage  String
+    kycStatus         KycStatus @default(PENDING)
     createdAt         DateTime  @default(now())
     updatedAt         DateTime  @updatedAt
-    User              User      @relation(fields: [userId], references: [id])
+
+    userId String @unique
+    user   User   @relation(fields: [userId], references: [id])
 
     @@map("kyc_details")
 }
 
 model BankDetail {
     id            String   @id @default(cuid())
-    userId        String
-    phone         String?
+    userId        String   @unique
     accountHolder String
     accountNumber String   @unique
     ifscCode      String
     bankName      String?
+    phone         String?
     passbookImage String?
     isVerified    Boolean  @default(false)
     createdAt     DateTime @default(now())
     updatedAt     DateTime @updatedAt
 
-    user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    Payout Payout[]
+    user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    payouts Payout[]
 
-    @@unique([userId, accountNumber])
     @@map("bank_details")
 }
 
@@ -118,16 +125,17 @@ model Wallet {
     id        String   @id @default(cuid())
     userId    String   @unique
     balance   Float    @default(0)
-    user      User     @relation(fields: [userId], references: [id])
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    @@map("wallet")
+    user User @relation(fields: [userId], references: [id])
+
+    @@map("wallets")
 }
 
 model WalletTopup {
     id           String      @id @default(cuid())
-    userId       String
+    userId       String      @unique
     orderId      String      @unique
     paymentId    String?     @unique
     amount       Float
@@ -139,13 +147,7 @@ model WalletTopup {
 
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@map("wallet_topup")
-}
-
-enum TopupStatus {
-    PENDING
-    VERIFIED
-    REJECTED
+    @@map("wallet_topups")
 }
 
 model UserLimit {
@@ -155,54 +157,49 @@ model UserLimit {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    @@map("user_limit")
+    @@map("user_limits")
 }
 
 model Commission {
-    id        String             @id @default(cuid())
-    adminId   String
-    role      UserRole
-    service   CommissionServices
+    id        String         @id @default(cuid())
+    userId    String         @unique
+    roleId    String
     from      Float
     to        Float
     value     Float
     type      CommissionType
-    createdAt DateTime           @default(now())
-    updatedAt DateTime           @updatedAt
-    User      User?              @relation(fields: [adminId], references: [id])
+    createdAt DateTime       @default(now())
+    updatedAt DateTime       @updatedAt
 
-    @@map("commission")
-}
+    // Relations
+    user    User    @relation(fields: [userId], references: [id])
+    service Service @relation(fields: [serviceId], references: [id])
+    role    Role    @relation(fields: [roleId], references: [id])
 
-enum CommissionType {
-    FIXED
-    PERCENT
-}
+    serviceId String
 
-enum CommissionServices {
-    IMPS
-    NEFT
+    @@map("commissions")
 }
 
 model Payout {
     id        String    @id @default(cuid())
-    userId    String
+    userId    String    @unique
     bankId    String
     amount    Float
-    status    TxnStatus @default(PENDING)
     txnId     String
+    status    TxnStatus @default(PENDING)
     createdAt DateTime  @default(now())
     updatedAt DateTime  @updatedAt
 
     user       User       @relation(fields: [userId], references: [id])
     bankDetail BankDetail @relation(fields: [bankId], references: [id])
 
-    @@map("payout")
+    @@map("payouts")
 }
 
-model AuditLog {
+model UserLog {
     id          String   @id @default(cuid())
-    userId      String?
+    userId      String?  @unique
     action      String
     description String?
     ipAddress   String?
@@ -211,32 +208,7 @@ model AuditLog {
 
     user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-    @@map("audit_logs")
-}
-
-model ApiKey {
-    id        String    @id @default(cuid())
-    userId    String
-    key       String    @unique
-    name      String
-    isActive  Boolean   @default(true)
-    createdAt DateTime  @default(now())
-    expiresAt DateTime?
-
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@map("api_keys")
-}
-
-// Enums
-enum UserRole {
-    SUPER_ADMIN
-    API_HOLDER
-    ADMIN
-    STATE_HOLDER
-    MASTER_DISTRIBUTOR
-    DISTRIBUTOR
-    AGENT
+    @@map("user_logs")
 }
 
 enum UserStatus {
@@ -251,8 +223,19 @@ enum KycStatus {
     REJECTED
 }
 
+enum TopupStatus {
+    PENDING
+    VERIFIED
+    REJECTED
+}
+
 enum TxnStatus {
     PENDING
     SUCCESS
     FAILED
+}
+
+enum CommissionType {
+    FIXED
+    PERCENT
 }
