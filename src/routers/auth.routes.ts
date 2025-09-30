@@ -1,8 +1,10 @@
 import { Router } from "express";
-import AuthController from "../controllers/auth.controller.js";
 
-const routers = Router();
+const authRoutes = Router();
 
-routers.get("/test", AuthController.index);
+authRoutes.get("");
+authRoutes.post("");
+authRoutes.put("");
+authRoutes.delete("");
 
-export default routers;
+export default authRoutes;
