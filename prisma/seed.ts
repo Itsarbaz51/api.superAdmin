@@ -1,6 +1,5 @@
 import Prisma from "../src/db/db.js";
-import { hashPassword } from "../src/utils/lib.js";
-
+import Helper from "../src/utils/helper.js";
 
 async function main() {
   const superAdminEmail = "superadmin@gmail.com";
@@ -16,7 +15,7 @@ async function main() {
   }
 
   // Password hash karo
-  const hashedPassword = await hashPassword("superadmin");
+  const hashedPassword = await Helper.hashPassword("superadmin");
 
   // Super Admin create karo
   const superAdmin = await Prisma.user.create({
@@ -25,7 +24,7 @@ async function main() {
       email: superAdminEmail,
       phone: superAdminPhone,
       password: hashedPassword,
-      role: "SUPER_ADMIN", 
+      role: "SUPER_ADMIN",
       status: "ACTIVE",
       isAuthorized: true,
       isKyc: true,

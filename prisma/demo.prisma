@@ -1,0 +1,612 @@
+// schema.prisma
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+// ============ ENUMS ============
+enum CommissionType {
+    FLAT
+    PERCENT
+}
+
+enum UserRoleType {
+    SUPER_ADMIN
+    ADMIN
+    STATE_HEAD
+    MASTER_DISTRIBUTOR
+    DISTRIBUTOR
+    RETAILER
+}
+
+enum TransactionStatus {
+    SUCCESS
+    FAILED
+    ERROR
+    PENDING
+    PROCESSING
+}
+
+enum PlatformType {
+    WEB
+    API
+    MOBILE
+}
+
+enum KycStatus {
+    PENDING
+    APPROVED
+    REJECTED
+    UNDER_REVIEW
+}
+
+enum VerificationStatus {
+    SUCCESS
+    FAILED
+    ERROR
+}
+
+enum BooleanStatus {
+    YES
+    NO
+}
+
+enum RefundStatus {
+    PENDING
+    REFUNDED
+    NOT_REFUNDED
+}
+
+// ============ CORE SYSTEM MODELS ============
+model Role {
+    id          Int      @id @default(autoincrement())
+    name        String   @unique
+    level       Int      @unique
+    description String?
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @default(now()) @map("updated_at")
+
+    users              User[]
+    rolePermissions    RolePermission[]
+    commissionSettings CommissionSetting[]
+
+    @@map("roles")
+}
+
+model Service {
+    id               BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    name             String
+    code             String    @unique
+    transactionTable String?   @map("txn_table")
+    isActive         Boolean   @default(true) @map("active")
+    imageUrl         String    @map("image")
+    description      String    @map("desc") @db.VarChar(255)
+    createdAt        DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt        DateTime? @map("updated_at") @db.Timestamp(0)
+    callbackPayload  Json?     @map("callback_payload")
+
+    rolePermissions    RolePermission[]
+    userPermissions    UserPermission[]
+    commissionSettings CommissionSetting[]
+    commissionEarnings CommissionEarning[]
+
+    @@map("services")
+}
+
+model User {
+    id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    username        String    @db.Text
+    firstName       String    @map("first_name")
+    lastName        String    @map("last_name")
+    transactionPin  String    @map("pin") @db.Text
+    company         String    @map("compny") @db.Text
+    profileImage    String?   @map("profile") @db.Text
+    packageId       Int       @map("package")
+    walletBalance   String    @map("wallet") @db.Text
+    parentId        BigInt?   @map("parent_id") @db.UnsignedBigInt
+    parent          User?     @relation("UserHierarchy", fields: [parentId], references: [id])
+    children        User[]    @relation("UserHierarchy")
+    roleId          Int       @map("role_id")
+    role            Role
+    isActive        Boolean   @default(true) @map("active")
+    email           String    @unique
+    phone           String
+    emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamp(0)
+    password        String
+    backupPassword  String?   @map("password2") @db.Text
+    rememberToken   String?   @map("remember_token") @db.VarChar(100)
+    createdAt       DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt       DateTime? @map("updated_at") @db.Timestamp(0)
+    allowedServices Json      @default("[\"login\"]") @map("services")
+    hierarchyLevel  Int       @default(1) @map("hierarchy_level")
+    hierarchyPath   String?   @map("hierarchy_path") @db.Text
+
+    // Relations - FIXED: Unique relation names
+    userPermissions                UserPermission[]
+    receivedCommissions            CommissionEarning[]             @relation("CommissionEarningToUser")
+    createdCommissionSettings      CommissionSetting[]             @relation("CommissionSettingCreatedBy")
+    walletTransactions             WalletTransaction[]
+    aepsWalletTransactions         AepsWalletTransaction[]
+    payoutAccounts                 PayoutAccount[]
+    payoutTransactions             PayoutTransaction[]
+    dmtTransactions                DmtTransaction[]
+    rechargeTransactions           RechargeTransaction[]
+    bbpsTransactions               BbpsTransaction[]
+    aepsTransactions               AepsTransaction[]
+    panAepsTransactions            PanAepsTransaction[]
+    aadharVerificationTransactions AadharVerificationTransaction[]
+    panVerificationTransactions    PanVerificationTransaction[]
+    userKyc                        UserKyc?
+    complaints                     Complaint[]
+    apiKeys                        ApiKey[]
+
+    @@index([parentId])
+    @@index([hierarchyLevel])
+    @@map("users")
+}
+
+model RolePermission {
+    id               Int      @id @default(autoincrement())
+    roleId           Int      @map("role_id")
+    role             Role
+    serviceId        Int      @map("service_id")
+    service          Service
+    canView          Boolean  @default(true) @map("can_view")
+    canEdit          Boolean  @default(false) @map("can_edit")
+    canSetCommission Boolean  @default(false) @map("can_set_commission")
+    createdAt        DateTime @default(now()) @map("created_at")
+    updatedAt        DateTime @default(now()) @map("updated_at")
+
+    @@unique([roleId, serviceId])
+    @@map("role_permissions")
+}
+
+model UserPermission {
+    id               Int      @id @default(autoincrement())
+    userId           BigInt   @map("user_id") @db.UnsignedBigInt
+    user             User
+    serviceId        Int      @map("service_id")
+    service          Service
+    canView          Boolean? @map("can_view")
+    canEdit          Boolean? @map("can_edit")
+    canSetCommission Boolean? @map("can_set_commission")
+    createdAt        DateTime @default(now()) @map("created_at")
+    updatedAt        DateTime @default(now()) @map("updated_at")
+
+    @@unique([userId, serviceId])
+    @@map("user_permissions")
+}
+
+model CommissionSetting {
+    id              Int            @id @default(autoincrement())
+    roleId          Int            @map("role_id")
+    role            Role
+    serviceId       Int            @map("service_id")
+    service         Service
+    commissionType  CommissionType @default(FLAT) @map("commission_type")
+    commissionValue Float          @map("commission_value") @db.Decimal(8, 2)
+    minAmount       Float?         @map("min_amount") @db.Decimal(10, 2)
+    maxAmount       Float?         @map("max_amount") @db.Decimal(10, 2)
+    createdBy       BigInt         @map("created_by") @db.UnsignedBigInt
+    createdByUser   User           @relation("CommissionSettingCreatedBy", fields: [createdBy], references: [id])
+    isActive        Boolean        @default(true) @map("is_active")
+    createdAt       DateTime       @default(now()) @map("created_at")
+    updatedAt       DateTime       @default(now()) @map("updated_at")
+
+    @@unique([roleId, serviceId])
+    @@map("commission_settings")
+}
+
+model CommissionEarning {
+    id                BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+    userId            BigInt   @map("user_id") @db.UnsignedBigInt
+    user              User     @relation("CommissionEarningToUser", fields: [userId], references: [id])
+    fromUserId        BigInt?  @map("from_user_id") @db.UnsignedBigInt
+    fromUser          User?    @relation("CommissionEarningFromUser", fields: [fromUserId], references: [id])
+    serviceId         Int      @map("service_id")
+    service           Service
+    transactionId     String   @map("transaction_id") @db.VarChar(100)
+    transactionType   String   @map("transaction_type") @db.VarChar(50)
+    amount            Float    @db.Decimal(10, 2)
+    commissionAmount  Float    @map("commission") @db.Decimal(10, 2)
+    commissionPercent Float    @map("commission_percent") @db.Decimal(5, 2)
+    level             Int
+    createdAt         DateTime @default(now()) @map("created_at")
+
+    @@index([userId])
+    @@index([transactionId])
+    @@map("commission_earnings")
+}
+
+// ============ WALLET MODELS ============
+model Wallet {
+    id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId       Int       @map("user_id")
+    user         User
+    aepsBalance  Float     @map("aeps") @db.Decimal(8, 2)
+    mainBalance  Float     @map("normal") @db.Decimal(8, 2)
+    lockedAmount Float?    @map("lamount")
+    remark       String?   @db.Text
+    createdAt    DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt    DateTime? @map("updated_at") @db.Timestamp(0)
+
+    @@map("wallets")
+}
+
+model WalletTransaction {
+    id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId          Int       @map("user_id")
+    user            User
+    transactionId   String    @map("txnid")
+    type            String
+    transactionType String    @map("txntype")
+    amount          Float     @db.Decimal(8, 2)
+    openingBalance  Float     @map("opening") @db.Decimal(8, 2)
+    closingBalance  Float     @map("closing") @db.Decimal(8, 2)
+    createdAt       DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt       DateTime? @map("updated_at") @db.Timestamp(0)
+    remark          String?   @db.Text
+
+    @@map("wallet_txns")
+}
+
+model AepsWalletTransaction {
+    id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId          Int       @map("user_id")
+    user            User
+    transactionId   String    @map("txnid")
+    type            String
+    transactionType String    @map("txntype")
+    amount          Float     @db.Decimal(8, 2)
+    openingBalance  Float     @map("opening") @db.Decimal(8, 2)
+    closingBalance  Float     @map("closing") @db.Decimal(8, 2)
+    createdAt       DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt       DateTime? @map("updated_at") @db.Timestamp(0)
+    remark          String?   @db.Text
+
+    @@map("awallet_txns")
+}
+
+// ============ AEPS MODELS ============
+model AepsTransaction {
+    id                  BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId              Int?      @map("user_id")
+    user                User?
+    kycId               Int?      @map("akyc_id")
+    transactionId       String?   @map("txnid")
+    type                String?
+    amount              String?
+    status              String
+    requestData         Json?     @map("data")
+    responseData        Json?     @map("response")
+    commissionProcessed Boolean   @default(false)
+    commissionLevel     Int       @default(0)
+    createdAt           DateTime? @default(now()) @map("created_at") @db.Timestamp(0)
+    updatedAt           DateTime? @default(now()) @map("updated_at") @db.Timestamp(0)
+
+    @@map("aepstxns")
+}
+
+model AepsKyc {
+    id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    ecOutletId   String?   @map("ecoutlet_id")
+    outletId     String?   @map("outlet_id")
+    name         String?
+    shopName     String?   @map("shopname")
+    city         String?
+    state        String?
+    pincode      String?
+    district     String?
+    address      String?
+    panNumber    String?   @map("panno")
+    aadharNumber String?   @map("aadharno")
+    createdAt    DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt    DateTime? @map("updated_at") @db.Timestamp(0)
+    responseData Json      @map("response")
+    status       String
+    kycStatus    String    @default("0") @map("kstatus") @db.VarChar(50)
+
+    @@map("aepskycs")
+}
+
+model PanAepsTransaction {
+    id                  BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId              Int       @map("user_id")
+    user                User
+    transactionId       String    @map("txnid")
+    type                String
+    amount              String?
+    status              String
+    requestData         Json      @map("data")
+    responseData        Json      @map("response")
+    commissionProcessed Boolean   @default(false)
+    commissionLevel     Int       @default(0)
+    createdAt           DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt           DateTime? @map("updated_at") @db.Timestamp(0)
+
+    @@map("paepstxns")
+}
+
+// ============ DMT MODELS ============
+model DmtTransaction {
+    id                  BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId              Int       @map("user_id")
+    user                User
+    transactionId       String    @map("txnid")
+    accountNumber       String    @map("account")
+    ifscCode            String    @map("ifsc")
+    beneficiaryName     String    @map("bene_name")
+    status              String
+    apiProvider         String?   @map("api") @db.VarChar(50)
+    isUpdated           Boolean   @default(false) @map("is_updated")
+    requestData         Json      @map("data")
+    responseData        Json      @map("response")
+    callbackUrl         String?   @map("callback") @db.Text
+    amount              Float     @db.Decimal(8, 2)
+    commissionProcessed Boolean   @default(false)
+    commissionLevel     Int       @default(0)
+    createdAt           DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt           DateTime? @map("updated_at") @db.Timestamp(0)
+
+    @@map("dmt_txns")
+}
+
+model DmtBeneficiary {
+    id            BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    mobile        String
+    beneficiaryId Int       @map("bene_id")
+    bankId        Int       @map("bank_id")
+    bankName      String    @map("bank_name")
+    name          String
+    accountNumber String    @map("acc_no")
+    ifscCode      String    @map("ifsc")
+    createdAt     DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt     DateTime? @map("updated_at") @db.Timestamp(0)
+
+    @@map("dmt_benes")
+}
+
+model DmtBank {
+    id     Int     @id @default(autoincrement())
+    bankId Int     @map("bank_id")
+    name   String? @map("bname") @db.Text
+
+    @@map("dmtbanks")
+}
+
+// ============ RECHARGE & BILL PAYMENT MODELS ============
+model RechargeTransaction {
+    id                  BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId              Int       @map("user_id")
+    user                User
+    apiProvider         String?   @map("api") @db.Text
+    transactionId       String    @map("txnid")
+    operatorId          String?   @map("opid") @db.VarChar(20)
+    amount              Float     @db.Decimal(8, 2)
+    status              String
+    message             String?   @db.Text
+    isUpdated           Boolean   @default(false) @map("is_updated")
+    isRefunded          Boolean   @default(false) @map("is_refunded")
+    requestData         Json      @map("data")
+    responseData        Json      @map("response")
+    callbackData        Json?     @map("callback")
+    commissionProcessed Boolean   @default(false)
+    commissionLevel     Int       @default(0)
+    createdAt           DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt           DateTime? @map("updated_at") @db.Timestamp(0)
+
+    @@map("rectxns")
+}
+
+model BbpsTransaction {
+    id                  BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId              Int       @map("user_id")
+    user                User
+    transactionId       String    @map("txnid")
+    billerId            String?   @map("biller_id") @db.VarChar(50)
+    amount              Float     @db.Decimal(8, 2)
+    status              String
+    requestData         Json?     @map("data")
+    responseData        Json?     @map("response")
+    callbackUrl         String?   @map("callback") @db.Text
+    commissionProcessed Boolean   @default(false)
+    commissionLevel     Int       @default(0)
+    createdAt           DateTime? @default(now()) @map("created_at") @db.Timestamp(0)
+    updatedAt           DateTime? @default(now()) @map("updated_at") @db.Timestamp(0)
+
+    @@map("bbpstxns")
+}
+
+model RechargeOperator {
+    id        Int      @id @default(autoincrement())
+    name      String?  @db.Text
+    code      Int?     @map("azz_code")
+    type      String?  @db.Text
+    createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+    updatedAt DateTime @default(now()) @map("updated_at") @db.DateTime(0)
+
+    @@map("recharge_operators")
+}
+
+// ============ PAYOUT MODELS ============
+model PayoutTransaction {
+    id                  BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId              Int       @map("user_id")
+    user                User
+    accountId           String?   @map("account_id") @db.VarChar(50)
+    transactionId       String    @map("txnid")
+    referenceNumber     String?   @map("rrn")
+    mode                String
+    amount              Float     @db.Decimal(8, 2)
+    status              String
+    isUpdated           Boolean   @default(false) @map("is_updated")
+    isRefunded          Boolean   @default(false) @map("is_refunded")
+    requestData         Json      @map("data")
+    responseData        Json      @map("response")
+    statusCheckResponse Json?     @map("status_check_response")
+    callbackData        Json?     @map("callback")
+    commissionProcessed Boolean   @default(false)
+    commissionLevel     Int       @default(0)
+    createdAt           DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt           DateTime? @map("updated_at") @db.Timestamp(0)
+
+    @@map("payout_txns")
+}
+
+model PayoutAccount {
+    id                BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId            Int       @map("user_id")
+    user              User
+    accountHolderName String    @map("name")
+    accountNumber     String    @map("account")
+    ifscCode          String    @map("ifsc")
+    passbookImage     String    @map("passbook")
+    status            String    @default("PENDING")
+    createdAt         DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt         DateTime? @map("updated_at") @db.Timestamp(0)
+
+    @@map("payout_accounts")
+}
+
+// ============ KYC & VERIFICATION MODELS ============
+model UserKyc {
+    id                 BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId             Int       @map("user_id")
+    user               User      @relation(fields: [userId], references: [id])
+    fullName           String    @map("name")
+    fatherName         String    @map("father_name")
+    address            String
+    city               String
+    state              String
+    pincode            String
+    aadharNumber       String    @map("aadhaar_no")
+    panNumber          String    @map("pan_no")
+    aadharFrontImage   String?   @map("aadhaar_front")
+    aadharBackImage    String?   @map("aadhaar_back")
+    photoDocuments     String?   @map("photo_docs") @db.Text
+    policeVerification String?   @map("police_verification") @db.Text
+    panImage           String?   @map("pan_img")
+    shopName           String    @map("shop_name")
+    shopAddress        String    @map("shop_address")
+    dateOfBirth        DateTime  @map("dob") @db.DateTime(0)
+    status             String
+    createdAt          DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt          DateTime? @map("updated_at") @db.Timestamp(0)
+
+    @@unique([userId])
+    @@map("userkycs")
+}
+
+model AadharVerificationTransaction {
+    id            Int                @id @default(autoincrement())
+    userId        Int                @map("user_id")
+    user          User?
+    transactionId String?            @map("txnid") @db.VarChar(30)
+    charge        Float              @default(0.00) @db.Decimal(10, 2)
+    aadharNumber  String             @map("aadahr_number") @db.VarChar(12)
+    name          String?
+    status        VerificationStatus @default(SUCCESS)
+    adminStatus   String?            @default("REJECTED") @map("admin_status") @db.Text
+    requestData   Json?              @map("request")
+    responseData  Json?              @map("response")
+    platform      PlatformType       @default(WEB)
+    createdAt     DateTime?          @default(now()) @map("created_at") @db.DateTime(0)
+    updatedAt     DateTime           @default(now()) @map("updated_at") @db.DateTime(0)
+
+    @@map("aadahr_verification_txns")
+}
+
+model PanVerificationTransaction {
+    id            Int                @id @default(autoincrement())
+    userId        Int                @map("uid")
+    user          User?
+    transactionId String?            @map("txnid") @db.VarChar(30)
+    charge        Float              @default(0.00) @db.Decimal(10, 2)
+    panNumber     String             @map("pan_number") @db.VarChar(12)
+    name          String?
+    status        VerificationStatus @default(SUCCESS)
+    adminStatus   String?            @default("REJECTED") @map("admin_status") @db.Text
+    requestData   Json?              @map("request")
+    responseData  Json?              @map("response")
+    platform      PlatformType       @default(WEB)
+    createdAt     DateTime?          @default(now()) @map("created_at") @db.DateTime(0)
+    updatedAt     DateTime           @default(now()) @map("updated_at") @db.DateTime(0)
+
+    @@map("pan_verification_txns")
+}
+
+// ============ SUPPORT & COMPLAINT MODELS ============
+model Complaint {
+    id         Int      @id @default(autoincrement())
+    userId     String   @map("uid") @db.Text
+    user       User?
+    imageUrl   String   @map("image") @db.Text
+    ticketId   String   @map("ticketid") @db.Text
+    subject    String   @db.Text
+    message    String   @map("complain_msg") @db.Text
+    adminReply String?  @map("adminmsg") @db.Text
+    status     String   @db.Text
+    createdAt  DateTime @default(now()) @map("created_date") @db.DateTime(0)
+
+    @@map("complain")
+}
+
+// ============ SYSTEM CONFIGURATION MODELS ============
+model SystemSetting {
+    id        BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    name      String
+    value     String    @db.Text
+    type      String    @db.Text
+    createdAt DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt DateTime? @map("updated_at") @db.Timestamp(0)
+
+    @@map("settings")
+}
+
+model ApiKey {
+    id         BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+    userId     Int       @map("user_id")
+    user       User
+    apiKey     String    @map("key")
+    apiSecret  String    @map("secret")
+    allowedIps String    @map("ip")
+    isActive   Int       @map("active")
+    createdAt  DateTime? @map("created_at") @db.Timestamp(0)
+    updatedAt  DateTime? @map("updated_at") @db.Timestamp(0)
+
+    @@map("apis")
+}
+
+// ============ LEGACY MODELS (For backward compatibility) ============
+model LegacyWallet {
+    id                Int      @id @default(autoincrement())
+    userId            String   @map("uid") @db.Text
+    transactionUserId String?  @map("txn_uid") @db.Text
+    type              String   @db.Text
+    transactionType   String   @map("txntype") @db.Text
+    remark            String?  @db.Text
+    status            String?  @db.VarChar(200)
+    transactionId     String   @map("txnid") @db.Text
+    amount            String   @db.Text
+    openingBalance    String   @map("opening") @db.Text
+    closingBalance    String   @map("closing") @db.Text
+    createdAt         DateTime @default(now()) @map("date") @db.DateTime(0)
+    updatedAt         DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+
+    @@map("wallet")
+}
+
+model BankDetail {
+    id            Int    @id @default(autoincrement())
+    bankName      String @map("name") @db.Text
+    accountNumber String @map("account") @db.Text
+    ifscCode      String @map("ifsc") @db.Text
+    bank          String @db.Text
+    branchName    String @map("bname") @db.Text
+
+    @@map("bank")
+}

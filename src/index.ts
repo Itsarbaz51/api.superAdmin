@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import Prisma from "./db/db.js";
 import app from "./app.js";
+import { envConfig } from "./config/env.config.js";
 
 dotenv.config({ path: "./.env" });
 
@@ -13,8 +14,10 @@ dotenv.config({ path: "./.env" });
     } catch (error) {
       console.error("DB connection error:", error);
     }
-    app.listen(process.env.PORT, () => {
-      console.log(`HTTP server running on port ${process.env.PORT}`);
+
+    const PORT = envConfig.PORT || 8000;
+    app.listen(PORT, () => {
+      console.log(`HTTP server running on port ${PORT}`);
     });
   } catch (error) {
     console.error("Server startup failed:", error);

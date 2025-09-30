@@ -1,241 +1,656 @@
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "mysql"
-    url      = env("DATABASE_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
-model Role {
-    id          String       @id @default(uuid())
-    name        String       @unique
-    users       User[]
-    commissions Commission[]
-
-    @@map("roles")
-}
-
-model User {
-    id            String     @id @default(cuid())
-    name          String
-    email         String     @unique
-    phone         String     @unique
-    password      String
-    domainName    String     @unique
-    roleId        String
-    parentId      String?    @unique
-    subParentId   String?    @unique
-    walletBalance Float      @default(0)
-    status        UserStatus @default(IN_ACTIVE)
-    isDeleted     Boolean    @default(false)
-    isKycVerified Boolean    @default(false)
-    isAuthorized  Boolean    @default(false)
-    createdAt     DateTime   @default(now())
-    updatedAt     DateTime   @updatedAt
-
-    // Relations
-    role        Role          @relation(fields: [roleId], references: [id])
-    bankDetails BankDetail?
-    kycDetails  KycDetail?
-    wallet      Wallet?
-    logs        UserLog[]
-    services    UserService[]
-    commissions Commission[]
-    payouts     Payout[]
-    topups      WalletTopup[]
-
-    @@map("users")
-}
-
-model Service {
-    id          String   @id @default(uuid())
-    name        String   @unique
-    description String?  @db.LongText
-    svgImage    String?  @db.LongText
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
-
-    users       UserService[]
-    commissions Commission[]
-
-    @@map("services")
-}
-
-model UserService {
-    id        String   @id @default(cuid())
-    userId    String   @unique
-    serviceId String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    user    User    @relation(fields: [userId], references: [id])
-    service Service @relation(fields: [serviceId], references: [id])
-
-    @@unique([userId, serviceId])
-    @@map("user_services")
-}
-
-model KycDetail {
-    id                String    @id @default(cuid())
-    panNumber         String    @unique @db.VarChar(10)
-    aadhaarNumber     String    @unique @db.VarChar(12)
-    panImage          String
-    aadhaarImageFront String
-    aadhaarImageBack  String
-    fatherName        String
-    dob               String
-    homeAddress       String    @db.LongText
-    shopName          String    @db.LongText
-    district          String
-    state             String
-    pinCode           String
-    shopAddress       String    @db.LongText
-    shopAddressImage  String
-    kycStatus         KycStatus @default(PENDING)
-    createdAt         DateTime  @default(now())
-    updatedAt         DateTime  @updatedAt
-
-    userId String @unique
-    user   User   @relation(fields: [userId], references: [id])
-
-    @@map("kyc_details")
-}
-
-model BankDetail {
-    id            String   @id @default(cuid())
-    userId        String   @unique
-    accountHolder String
-    accountNumber String   @unique
-    ifscCode      String
-    bankName      String?
-    phone         String?
-    passbookImage String?
-    isVerified    Boolean  @default(false)
-    createdAt     DateTime @default(now())
-    updatedAt     DateTime @updatedAt
-
-    user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    payouts Payout[]
-
-    @@map("bank_details")
-}
-
-model Wallet {
-    id        String   @id @default(cuid())
-    userId    String   @unique
-    balance   Float    @default(0)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    user User @relation(fields: [userId], references: [id])
-
-    @@map("wallets")
-}
-
-model WalletTopup {
-    id           String      @id @default(cuid())
-    userId       String      @unique
-    orderId      String      @unique
-    paymentId    String?     @unique
-    amount       Float
-    provider     String
-    paymentImage String?
-    status       TopupStatus @default(PENDING)
-    createdAt    DateTime    @default(now())
-    updatedAt    DateTime    @updatedAt
-
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@map("wallet_topups")
-}
-
-model UserLimit {
-    id        String   @id @default(cuid())
-    userId    String   @unique
-    maxLimit  Float    @default(0)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@map("user_limits")
-}
-
-model Commission {
-    id        String         @id @default(cuid())
-    userId    String         @unique
-    roleId    String
-    from      Float
-    to        Float
-    value     Float
-    type      CommissionType
-    createdAt DateTime       @default(now())
-    updatedAt DateTime       @updatedAt
-
-    // Relations
-    user    User    @relation(fields: [userId], references: [id])
-    service Service @relation(fields: [serviceId], references: [id])
-    role    Role    @relation(fields: [roleId], references: [id])
-
-    serviceId String
-
-    @@map("commissions")
-}
-
-model Payout {
-    id        String    @id @default(cuid())
-    userId    String    @unique
-    bankId    String
-    amount    Float
-    txnId     String
-    status    TxnStatus @default(PENDING)
-    createdAt DateTime  @default(now())
-    updatedAt DateTime  @updatedAt
-
-    user       User       @relation(fields: [userId], references: [id])
-    bankDetail BankDetail @relation(fields: [bankId], references: [id])
-
-    @@map("payouts")
-}
-
-model UserLog {
-    id          String   @id @default(cuid())
-    userId      String?  @unique
-    action      String
-    description String?
-    ipAddress   String?
-    userAgent   String?
-    createdAt   DateTime @default(now())
-
-    user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-    @@map("user_logs")
-}
+// ==================== ENUMS ====================
 
 enum UserStatus {
-    IN_ACTIVE
-    ACTIVE
-    DELETED
+  ACTIVE
+  IN_ACTIVE
+  DELETE
 }
 
-enum KycStatus {
-    PENDING
-    VERIFIED
-    REJECTED
+enum ServiceStatus {
+  ACTIVE
+  IN_ACTIVE
+  UNAVAILABLE
 }
 
-enum TopupStatus {
-    PENDING
-    VERIFIED
-    REJECTED
+enum BusinessType {
+  PROPRIETORSHIP
+  PARTNERSHIP
+  PRIVATE_LIMITED
 }
 
-enum TxnStatus {
-    PENDING
-    SUCCESS
-    FAILED
+enum AccountType {
+  PERSONAL
+  BUSINESS
 }
 
 enum CommissionType {
-    FIXED
-    PERCENT
+  FLAT
+  PERCENT
+}
+
+enum TxStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REVERSED
+  REFUNDED
+  CANCELLED
+}
+
+enum CommissionScope {
+  ROLE
+  USER
+}
+
+enum Env {
+  PROD
+  STAGING
+}
+
+// ==================== ROLE MODEL ====================
+
+model Role {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  level       Int     @unique
+  description String? @db.LongText
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  users             User[]
+  rolePermissions   RolePermission[]
+  CommissionSetting CommissionSetting[]
+
+  @@map("roles")
+}
+
+// ==================== USER MODEL ====================
+
+model User {
+  id String @id @default(uuid())
+
+  username       String @db.Text
+  firstName      String @map("first_name")
+  lastName       String @map("last_name")
+  profileImage   String @map("profile_image") @db.Text
+  email          String @unique
+  phoneNumber    String @unique @map("phone_number")
+  password       String
+  transactionPin String @map("transaction_pin") @db.Text
+  domainName     String @unique @map("domain_name")
+
+  // walletBalance deprecated in favor of Wallet model — kept for backward compat if needed
+  walletBalance BigInt? @default(0) @map("wallet_balance")
+  isAuthorized  Boolean @default(false) @map("is_authorized")
+
+  // Self-referencing hierarchy
+  parentId String? @map("parent_id")
+  parent   User?   @relation("UserHierarchy", fields: [parentId], references: [id])
+  children User[]  @relation("UserHierarchy")
+
+  // Hierarchy metadata
+  hierarchyLevel Int    @map("hierarchy_level")
+  hierarchyPath  String @map("hierarchy_path") @db.Text
+
+  // Status / KYC
+  status        UserStatus @default(ACTIVE)
+  isKycVerified Boolean    @default(false) @map("is_kyc_verified")
+
+  //  Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Role relation (recommended: roleId as FK)
+  roleId String @map("role_id")
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  // Service relation
+  userPermissions UserPermission[]
+  bankAccount     BankDetail[]
+  wallets         Wallet[]
+  piiConsents     PiiConsent[]
+
+  commissionTargets  CommissionSetting[] @relation("CommissionTargetUser")
+  commissionCreated  CommissionSetting[] @relation("CommissionSettingCreatedBy")
+  commissionEarnings CommissionEarning[] @relation("CommissionEarningToUser")
+  commissionsGiven   CommissionEarning[] @relation("CommissionEarningFromUser")
+  UserKyc            UserKyc[]
+  BusinessKyc        BusinessKyc?
+  SystemSetting      SystemSetting[]
+  LoginLogs          LoginLogs[]
+  Transaction        Transaction[]
+
+  // Indexes for performance
+  @@index([parentId])
+  @@index([hierarchyLevel])
+  @@map("users")
+}
+
+// ============ User KYC & VERIFICATION MODELS ============
+
+model UserKyc {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  photo      String
+  user       User     @relation(fields: [userId], references: [id])
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
+  fatherName String   @map("father_name")
+  dob        DateTime
+  gender     String
+
+  addressId String  @map("address_id")
+  address   Address @relation(fields: [addressId], references: [id])
+
+  panNumber String @unique @map("pan_number") @db.VarChar(10)
+  panFile   String @map("pan_file")
+
+  aadhaarNumber String @unique @map("aadhaar_number") @db.VarChar(12)
+  // store hash or masked only; avoid raw aadhaar storage
+  aadhaarFile   String @map("aadhaar_file")
+
+  addressProofFile String @map("address_proof_file")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  businessKycId String      @map("business_kyc_id")
+  businessKyc   BusinessKyc @relation(fields: [businessKycId], references: [id])
+
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("user_kycs")
+}
+
+// ==================== BUSINESS KYC ====================
+
+model BusinessKyc {
+  id           String       @id @default(uuid())
+  userId       String       @map("user_id")
+  user         User         @relation(fields: [userId], references: [id])
+  businessName String       @map("business_name") @db.Text
+  businessType BusinessType @map("business_type")
+
+  addressId String  @map("address_id")
+  address   Address @relation(fields: [addressId], references: [id])
+
+  panNumber String @unique @map("pan_number") @db.VarChar(10)
+  panFile   String @map("pan_file")
+
+  gstNumber String @unique @map("gst_number") @db.VarChar(15)
+  gstFile   String @map("gst_file")
+
+  // --------- Proprietorship Specific ---------
+  udhyamAadhar String? @map("udhyam_aadhar")
+  brDoc        String? @map("br_doc")
+
+  // --------- Partnership Specific ---------
+  partnershipDeed   String? @map("partnership_deed")
+  partnerKycNumbers Int?    @map("partner_kyc_numbers")
+
+  // --------- Private Limited Specific ---------
+  cin                  String? @map("cin")
+  moaFile              String? @map("moa_file")
+  aoaFile              String? @map("aoa_file")
+  directorKycNumbers   Int?    @default(2) @map("director_kyc_numbers")
+  directorShareholding String? @map("director_shareholding_file")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  userKycs UserKyc[]
+
+  @@unique([userId])
+  @@map("business_kycs")
+}
+
+// ==================== BANK DETAILS ====================
+
+model BankDetail {
+  id            String      @id @default(uuid())
+  accountHolder String      @map("account_holder") @db.Text
+  accountNumber String      @map("account_number") @db.VarChar(18)
+  phoneNumber   String      @map("phone_number")
+  accountType   AccountType @map("account_type")
+  bankProofFile String      @map("bank_proof_file")
+  isVerified    Boolean     @default(false) @map("is_verified")
+  isPrimary     Boolean     @default(false) @map("is_primary")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  bankId String @map("bank_id")
+  bank   Banks  @relation(fields: [bankId], references: [id])
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("bank_details")
+}
+
+// ==================== BANKS NAME & IFSC CODE ====================
+
+model Banks {
+  id       String @id @default(uuid())
+  bankName String @map("bank_name") @db.Text
+  ifscCode String @map("ifsc_code") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  bankDetails BankDetail[]
+
+  @@map("banks")
+}
+
+// ================== Address ====================
+
+model State {
+  id        String @id @default(uuid())
+  stateName String @map("state_name")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  Address   Address[]
+
+  @@map("states")
+}
+
+model City {
+  id       String @id @default(uuid())
+  cityName String @map("city_name")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  Address   Address[]
+
+  @@map("cities")
+}
+
+model Address {
+  id      String @id @default(uuid())
+  address String @db.LongText
+  pinCode String @map("pin_code")
+
+  stateId String @map("state_id")
+  state   State  @relation(fields: [stateId], references: [id])
+
+  cityId String @map("city_id")
+  city   City   @relation(fields: [cityId], references: [id])
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  UserKyc     UserKyc[]
+  BusinessKyc BusinessKyc[]
+}
+
+// ==================== Wallet ====================
+
+model Wallet {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id])
+  balance   BigInt    @default(0) // stored in paise
+  currency  String    @default("INR")
+  isPrimary Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? @map("deleted_at")
+
+  ledgerEntries LedgerEntry[]
+  transactions  Transaction[]
+
+  @@unique([userId, isPrimary], map: "unique_primary_wallet")
+  @@index([userId])
+  @@map("wallets")
+}
+
+// ==================== Commission  ====================
+
+model CommissionSetting {
+  id           String          @id @default(uuid())
+  scope        CommissionScope @default(ROLE)
+  roleId       String?         @map("role_id")
+  role         Role?           @relation(fields: [roleId], references: [id])
+  targetUserId String?         @map("target_user_id")
+  targetUser   User?           @relation("CommissionTargetUser", fields: [targetUserId], references: [id])
+
+  serviceId String  @map("service_id")
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  commissionType  CommissionType @map("commission_type")
+  commissionValue Decimal        @map("commission_value") @db.Decimal(8, 2)
+
+  minAmount BigInt? @map("min_amount")
+  maxAmount BigInt? @map("max_amount")
+
+  // tax config snapshot (audit-friendly)
+  applyTDS   Boolean  @default(false)
+  tdsPercent Decimal? @map("tds_percent") @db.Decimal(5, 2)
+  applyGST   Boolean  @default(false)
+  gstPercent Decimal? @map("gst_percent") @db.Decimal(5, 2)
+
+  createdBy     String @map("created_by")
+  createdByUser User   @relation("CommissionSettingCreatedBy", fields: [createdBy], references: [id])
+
+  isActive      Boolean   @default(true) @map("is_active")
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([scope, roleId, targetUserId, serviceId])
+  @@map("commission_settings")
+}
+
+model CommissionEarning {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation("CommissionEarningToUser", fields: [userId], references: [id])
+
+  fromUserId String @map("from_user_id")
+  fromUser   User   @relation("CommissionEarningFromUser", fields: [fromUserId], references: [id])
+
+  serviceId String  @map("service_id")
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  transactionId    String         @map("transaction_id") @db.VarChar(100)
+  amount           BigInt
+  commissionAmount BigInt         @map("commission_amount")
+  commissionType   CommissionType @map("commission_type")
+  level            Int
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([transactionId, userId])
+  @@map("commission_earnings")
+}
+
+// ==================== SERVICES  ====================
+
+model Service {
+  id          String        @id @default(uuid())
+  name        String        @unique
+  code        String        @unique
+  status      ServiceStatus @default(ACTIVE)
+  icon        String?
+  description String?       @db.LongText
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  providerRateCards ProviderRateCard[]
+  CommissionSetting CommissionSetting[]
+  CommissionEarning CommissionEarning[]
+  UserPermission    UserPermission[]
+  RolePermission    RolePermission[]
+  Transaction       Transaction[]
+
+  @@map("services")
+}
+
+// ==================== Service Providers & Credentials ====================
+
+model ServiceProvider {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  type      String // e.g., "AEPS", "BBPS", "DMT", "RECHARGE"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  credentials ProviderCredential[]
+  ratecards   ProviderRateCard[]
+  Transaction Transaction[]
+
+  @@map("service_providers")
+}
+
+model ProviderCredential {
+  id          String          @id @default(uuid())
+  providerId  String          @map("provider_id")
+  provider    ServiceProvider @relation(fields: [providerId], references: [id])
+  env         Env
+  keyName     String
+  keyVaultRef String // pointer to secrets manager (never store raw)
+  meta        String?         @db.LongText
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("provider_credentials")
+}
+
+model ProviderRateCard {
+  id            String          @id @default(uuid())
+  providerId    String          @map("provider_id")
+  provider      ServiceProvider @relation(fields: [providerId], references: [id])
+  serviceId     String          @map("service_id")
+  service       Service         @relation(fields: [serviceId], references: [id])
+  fixedCharge   BigInt? // paise
+  percentCharge Float? // percent (use Decimal if needed)
+  minCharge     BigInt?
+  maxCharge     BigInt?
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([providerId, serviceId, effectiveFrom])
+  @@map("provider_ratecards")
+}
+
+// ==================== User Service Permission  ====================
+
+model UserPermission {
+  id        String  @id @default(uuid())
+  serviceId String  @map("service_id")
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  canView          Boolean @default(false) @map("can_view")
+  canEdit          Boolean @default(false) @map("can_edit")
+  canSetCommission Boolean @default(false) @map("can_set_commission")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([userId, serviceId])
+  @@map("user_permissions")
+}
+
+// ==================== Role/Group Service Permission ====================
+
+model RolePermission {
+  id               String  @id @default(uuid())
+  roleId           String  @map("role_id")
+  role             Role    @relation(fields: [roleId], references: [id])
+  serviceId        String  @map("service_id")
+  service          Service @relation(fields: [serviceId], references: [id])
+  canView          Boolean @default(false) @map("can_view")
+  canEdit          Boolean @default(false) @map("can_edit")
+  canSetCommission Boolean @default(false) @map("can_set_commission")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([roleId, serviceId])
+  @@map("role_permissions")
+}
+
+// ==================== Settings ======================
+
+model SystemSetting {
+  id String @id @default(uuid())
+
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id])
+
+  companyName   String @map("company_name")
+  companyLogo   String @map("company_logo")
+  favIcon       String @map("fav_icon")
+  phoneNumber   String @map("phone_number")
+  whtsappNumber String @map("whtsapp_number")
+  companyEmail  String @map("company_email")
+
+  facebookUrl  String @map("facebook_url")
+  instagramUrl String @map("instagram_url")
+  twitterUrl   String @map("twitter_url")
+  linkedinUrl  String @map("linkedin_url")
+  websiteUrl   String @map("website_url")
+
+  createdAt DateTime  @map("created_at") @db.Timestamp(0)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("settings")
+}
+
+// ====================== Login Logs =================
+
+model LoginLogs {
+  id String @id @default(uuid())
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  domainName String @map("domain_name")
+
+  ipAddress String @map("ip_address")
+
+  userAgent String? @map("user_agent")
+
+  location  String? @map("location") @db.LongText
+  latitude  Float?  @map("latitude")
+  longitude Float?  @map("longitude")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([latitude, longitude])
+  @@map("login_logs")
+}
+
+// ==================== Transactions & Ledger ====================
+
+model Transaction {
+  id               String           @id @default(uuid())
+  referenceId      String?          @map("reference_id")
+  idempotencyKey   String?          @map("idempotency_key")
+  userId           String           @map("user_id")
+  user             User             @relation(fields: [userId], references: [id])
+  walletId         String?          @map("wallet_id")
+  wallet           Wallet?          @relation(fields: [walletId], references: [id])
+  serviceId        String           @map("service_id")
+  service          Service          @relation(fields: [serviceId], references: [id])
+  providerId       String?          @map("provider_id")
+  provider         ServiceProvider? @relation(fields: [providerId], references: [id])
+  amount           BigInt
+  providerCharge   BigInt?
+  commissionAmount BigInt
+  netAmount        BigInt?
+  status           TxStatus         @default(PENDING)
+  requestPayload   Json?
+  responsePayload  Json?
+  errorCode        String?
+  errorMessage     String?          @db.LongText
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  ledgerEntries LedgerEntry[]
+  Refund        Refund[]
+
+  @@index([userId])
+  @@index([idempotencyKey])
+  @@index([status, createdAt])
+  @@map("transactions")
+}
+
+model LedgerEntry {
+  id             String       @id @default(uuid())
+  transactionId  String?      @map("transaction_id")
+  transaction    Transaction? @relation(fields: [transactionId], references: [id])
+  walletId       String?      @map("wallet_id")
+  wallet         Wallet?      @relation(fields: [walletId], references: [id])
+  entryType      String // "DEBIT" or "CREDIT"
+  amount         BigInt // paise
+  runningBalance BigInt // snapshot after this entry
+  narration      String       @db.Text
+  createdAt      DateTime     @default(now())
+  createdBy      String       @map("created_by")
+  meta           Json?
+  idempotencyKey String?      @map("idempotency_key")
+
+  @@index([transactionId])
+  @@index([walletId, createdAt])
+  @@map("ledger_entries")
+}
+
+model IdempotencyKey {
+  key       String   @id
+  userId    String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime // required to allow TTL cleanup
+  used      Boolean  @default(false)
+  meta      Json?
+
+  @@map("idempotency_keys")
+}
+
+model Refund {
+  id            String      @id @default(uuid())
+  transactionId String      @map("transaction_id")
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  initiatedBy   String
+  amount        BigInt
+  status        TxStatus    @default(PENDING)
+  reason        String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("refunds")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  entity    String
+  entityId  String
+  action    String
+  actorId   String?
+  payload   Json? // application should limit size
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+model PiiConsent {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id])
+  piiType    String
+  piiHash    String
+  providedAt DateTime @default(now())
+  expiresAt  DateTime // required for compliance
+  scope      String
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@map("pii_consents")
 }
