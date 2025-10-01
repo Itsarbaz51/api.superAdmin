@@ -38,3 +38,7 @@ export interface User {
   updatedAt?: Date;
   // Add more fields if needed
 }
+
+export interface FindPost {
+  fileUrl?: string;
+}

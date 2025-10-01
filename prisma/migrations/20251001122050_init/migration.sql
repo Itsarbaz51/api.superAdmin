@@ -35,10 +35,13 @@ CREATE TABLE `users` (
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `deleted_at` DATETIME(3) NULL,
     `role_id` VARCHAR(191) NOT NULL,
+    `refresh_token` VARCHAR(191) NOT NULL,
+    `refresh_token_expires_at` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `users_email_key`(`email`),
     UNIQUE INDEX `users_phone_number_key`(`phone_number`),
     UNIQUE INDEX `users_domain_name_key`(`domain_name`),
+    UNIQUE INDEX `users_refresh_token_key`(`refresh_token`),
     INDEX `users_parent_id_idx`(`parent_id`),
     INDEX `users_hierarchy_level_idx`(`hierarchy_level`),
     PRIMARY KEY (`id`)
@@ -123,6 +126,7 @@ CREATE TABLE `banks` (
     `id` VARCHAR(191) NOT NULL,
     `bank_name` TEXT NOT NULL,
     `ifsc_code` TEXT NOT NULL,
+    `bank_icon` TEXT NOT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 

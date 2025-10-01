@@ -115,6 +115,10 @@ model User {
   roleId String @map("role_id")
   role   Role   @relation(fields: [roleId], references: [id])
 
+  //tokens
+  refreshToken          String   @unique @map("refresh_token")
+  refreshTokenExpiresAt DateTime @map("refresh_token_expires_at")
+
   // Service relation
   userPermissions UserPermission[]
   bankAccount     BankDetail[]
@@ -246,6 +250,7 @@ model Banks {
   id       String @id @default(uuid())
   bankName String @map("bank_name") @db.Text
   ifscCode String @map("ifsc_code") @db.Text
+  bankIcon String @map("bank_icon") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
