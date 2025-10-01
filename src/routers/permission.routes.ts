@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const permissionRoutes = Router();
+// const permissionRoutes = Router();
 
-permissionRoutes.get("");
-permissionRoutes.post("");
-permissionRoutes.put("");
-permissionRoutes.delete("");
+// permissionRoutes.get("");
+// permissionRoutes.post("");
+// permissionRoutes.put("");
+// permissionRoutes.delete("");
 
-export default permissionRoutes;
+// export default permissionRoutes;

@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const bankRoutes = Router();
+// const bankRoutes = Router();
 
-bankRoutes.get("");
-bankRoutes.post("");
-bankRoutes.put("");
-bankRoutes.delete("");
+// bankRoutes.get("");
+// bankRoutes.post("");
+// bankRoutes.put("");
+// bankRoutes.delete("");
 
-export default bankRoutes;
+// export default bankRoutes;

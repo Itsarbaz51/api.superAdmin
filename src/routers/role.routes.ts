@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const roleRoutes = Router();
+// const roleRoutes = Router();
 
-roleRoutes.get("");
-roleRoutes.post("");
-roleRoutes.put("");
-roleRoutes.delete("");
+// roleRoutes.get("");
+// roleRoutes.post("");
+// roleRoutes.put("");
+// roleRoutes.delete("");
 
-export default roleRoutes;
+// export default roleRoutes;

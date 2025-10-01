@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const transactionRoutes = Router();
+// const transactionRoutes = Router();
 
-transactionRoutes.get("");
-transactionRoutes.post("");
-transactionRoutes.put("");
-transactionRoutes.delete("");
+// transactionRoutes.get("");
+// transactionRoutes.post("");
+// transactionRoutes.put("");
+// transactionRoutes.delete("");
 
-export default transactionRoutes;
+// export default transactionRoutes;

@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const auditLogRoutes = Router();
+// const auditLogRoutes = Router();
 
-auditLogRoutes.get("");
-auditLogRoutes.post("");
-auditLogRoutes.put("");
-auditLogRoutes.delete("");
+// auditLogRoutes.get("");
+// auditLogRoutes.post("");
+// auditLogRoutes.put("");
+// auditLogRoutes.delete("");
 
-export default auditLogRoutes;
+// export default auditLogRoutes;

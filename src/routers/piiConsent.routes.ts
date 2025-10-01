@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const piiConsentRoutes = Router();
+// const piiConsentRoutes = Router();
 
-piiConsentRoutes.get("");
-piiConsentRoutes.post("");
-piiConsentRoutes.put("");
-piiConsentRoutes.delete("");
+// piiConsentRoutes.get("");
+// piiConsentRoutes.post("");
+// piiConsentRoutes.put("");
+// piiConsentRoutes.delete("");
 
-export default piiConsentRoutes;
+// export default piiConsentRoutes;

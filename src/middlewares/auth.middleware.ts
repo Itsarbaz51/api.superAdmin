@@ -28,6 +28,13 @@ class AuthMiddleware {
 
       const userExists = await Prisma.user.findUnique({
         where: { id: decoded.id },
+        include: {
+          role: {
+            select: {
+              name: true,
+            },
+          },
+        },
       });
 
       if (!userExists) {
@@ -37,7 +44,7 @@ class AuthMiddleware {
       req.user = {
         id: userExists.id,
         email: userExists.email,
-        role: userExists.role,
+        role: userExists.role.name,
       };
 
       return next();

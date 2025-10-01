@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const authRoutes = Router();
+// const authRoutes = Router();
 
-authRoutes.get("");
-authRoutes.post("");
-authRoutes.put("");
-authRoutes.delete("");
+// authRoutes.get("");
+// authRoutes.post("");
+// authRoutes.put("");
+// authRoutes.delete("");
 
-export default authRoutes;
+// export default authRoutes;

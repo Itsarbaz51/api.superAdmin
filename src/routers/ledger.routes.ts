@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const ledgerRoutes = Router();
+// const ledgerRoutes = Router();
 
-ledgerRoutes.get("");
-ledgerRoutes.post("");
-ledgerRoutes.put("");
-ledgerRoutes.delete("");
+// ledgerRoutes.get("");
+// ledgerRoutes.post("");
+// ledgerRoutes.put("");
+// ledgerRoutes.delete("");
 
-export default ledgerRoutes;
+// export default ledgerRoutes;

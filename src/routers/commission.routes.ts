@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const commissionRoutes = Router();
+// const commissionRoutes = Router();
 
-commissionRoutes.get("");
-commissionRoutes.post("");
-commissionRoutes.put("");
-commissionRoutes.delete("");
+// commissionRoutes.get("");
+// commissionRoutes.post("");
+// commissionRoutes.put("");
+// commissionRoutes.delete("");
 
-export default commissionRoutes;
+// export default commissionRoutes;

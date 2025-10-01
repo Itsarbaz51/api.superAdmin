@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const idempotencyKeyRoutes = Router();
+// const idempotencyKeyRoutes = Router();
 
-idempotencyKeyRoutes.get("");
-idempotencyKeyRoutes.post("");
-idempotencyKeyRoutes.put("");
-idempotencyKeyRoutes.delete("");
+// idempotencyKeyRoutes.get("");
+// idempotencyKeyRoutes.post("");
+// idempotencyKeyRoutes.put("");
+// idempotencyKeyRoutes.delete("");
 
-export default idempotencyKeyRoutes;
+// export default idempotencyKeyRoutes;

@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const userRoutes = Router();
+// const userRoutes = Router();
 
-userRoutes.get("");
-userRoutes.post("");
-userRoutes.put("");
-userRoutes.delete("");
+// userRoutes.get("");
+// userRoutes.post("");
+// userRoutes.put("");
+// userRoutes.delete("");
 
-export default userRoutes;
+// export default userRoutes;

@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const serviceRoutes = Router();
+// const serviceRoutes = Router();
 
-serviceRoutes.get("");
-serviceRoutes.post("");
-serviceRoutes.put("");
-serviceRoutes.delete("");
+// serviceRoutes.get("");
+// serviceRoutes.post("");
+// serviceRoutes.put("");
+// serviceRoutes.delete("");
 
-export default serviceRoutes;
+// export default serviceRoutes;

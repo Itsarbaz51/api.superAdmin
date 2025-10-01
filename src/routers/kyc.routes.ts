@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const kycRoutes = Router();
+// const kycRoutes = Router();
 
-kycRoutes.get("");
-kycRoutes.post("");
-kycRoutes.put("");
-kycRoutes.delete("");
+// kycRoutes.get("");
+// kycRoutes.post("");
+// kycRoutes.put("");
+// kycRoutes.delete("");
 
-export default kycRoutes;
+// export default kycRoutes;

@@ -1,10 +1,10 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-const systemSettingRoutes = Router();
+// const systemSettingRoutes = Router();
 
-systemSettingRoutes.get("");
-systemSettingRoutes.post("");
-systemSettingRoutes.put("");
-systemSettingRoutes.delete("");
+// systemSettingRoutes.get("");
+// systemSettingRoutes.post("");
+// systemSettingRoutes.put("");
+// systemSettingRoutes.delete("");
 
-export default systemSettingRoutes;
+// export default systemSettingRoutes;
