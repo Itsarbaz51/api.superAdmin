@@ -19,9 +19,7 @@ import { redisConnection } from "./db/redis.js";
 
     const PORT = envConfig.PORT || 8000;
     app.listen(PORT, () => {
-      logger.info("🚀 Server started successfully", {
-        context: "startup",
-      });
+      logger.info(`🚀 Server running on port ${PORT}`);
       console.log(`🚀 Server running on port ${PORT}`);
     });
   } catch (error) {
