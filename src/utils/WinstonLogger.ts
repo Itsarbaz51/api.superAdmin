@@ -1,5 +1,6 @@
 import winston from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
+import CloudWatchTransport from "./CloudWatchTransport.js";
 
 const { combine, timestamp, errors, printf, colorize, json } = winston.format;
 
@@ -71,6 +72,16 @@ if (!isProd) {
           return `${timestamp} [${level}] ${stack || msg}${metaStr}`;
         })
       ),
+    })
+  );
+}
+
+if (isProd) {
+  transports.push(
+    new CloudWatchTransport({
+      logGroupName: process.env.CLOUDWATCH_GROUP_NAME || "fintech-logs",
+      logStreamName: `app-${new Date().toISOString().split("T")[0]}`, // log stream per day
+      region: process.env.AWS_REGION || "ap-south-1",
     })
   );
 }
