@@ -6,8 +6,8 @@ import logger from "../utils/WinstonLogger.js";
 const rateLimiter = new RateLimiterRedis({
   storeClient: redis,
   keyPrefix: "middleware:rateLimiter",
-  points: Number(process.env.RATE_LIMIT_MAX) || 100, // requests
-  duration: Number(process.env.RATE_LIMIT_WINDOW) || 60, // per N seconds
+  points: Number(process.env.RATE_LIMIT_MAX), // requests
+  duration: Number(process.env.RATE_LIMIT_WINDOW), // per N seconds
 });
 
 export async function rateLimiterMiddleware(

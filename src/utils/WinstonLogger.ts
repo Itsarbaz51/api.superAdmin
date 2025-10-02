@@ -1,7 +1,7 @@
 import winston from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
-import CloudWatchTransport from "./CloudWatchTransport.js";
-import stringify from 'safe-stable-stringify';
+import CloudWatchTransport from "./CloudWatchTransport.js"; // custom transport
+import stringify from "safe-stable-stringify";
 
 const { combine, timestamp, errors, printf, colorize, json } = winston.format;
 
@@ -16,6 +16,9 @@ const devFormat = printf(({ timestamp, level, message, stack, ...meta }) => {
     : "";
   return `${timestamp} [${level}] ${stack || msg}${metaStr}`;
 });
+
+const filterOnly = (levelToKeep: string) =>
+  winston.format((info) => (info.level === levelToKeep ? info : false))();
 
 const transports: winston.transport[] = [
   new winston.transports.Console({
@@ -35,17 +38,15 @@ if (!isProd) {
       maxFiles: "14d",
       zippedArchive: true,
       format: combine(
+        filterOnly("error"),
         timestamp(),
         errors({ stack: true }),
-        printf(({ timestamp, level, message, stack, ...meta }) => {
+        printf(({ timestamp, level, message, stack }) => {
           const msg =
             typeof message === "object"
               ? JSON.stringify(message, null, 2)
               : message;
-          const metaStr = Object.keys(meta).length
-            ? `\n${JSON.stringify(meta, null, 2)}`
-            : "";
-          return `${timestamp} [${level}] ${stack || msg}${metaStr}`;
+          return `${timestamp} [${level}] ${stack || msg}`;
         })
       ),
     })
@@ -54,14 +55,15 @@ if (!isProd) {
   transports.push(
     new DailyRotateFile({
       level: "info",
-      filename: "logs/combined-%DATE%.log",
+      filename: "logs/info-%DATE%.log",
       datePattern: "YYYY-MM-DD",
       maxFiles: "14d",
       zippedArchive: true,
       format: combine(
+        filterOnly("info"),
         timestamp(),
         errors({ stack: true }),
-        printf(({ timestamp, level, message, stack, ...meta }) => {
+        printf(({ timestamp, level, message, ...meta }) => {
           const msg =
             typeof message === "object"
               ? JSON.stringify(message, null, 2)
@@ -69,7 +71,7 @@ if (!isProd) {
           const metaStr = Object.keys(meta).length
             ? `\n${JSON.stringify(meta, null, 2)}`
             : "";
-          return `${timestamp} [${level}] ${stack || msg}${metaStr}`;
+          return `${timestamp} [${level}] ${msg}${metaStr}`;
         })
       ),
     })
@@ -80,7 +82,7 @@ if (isProd) {
   transports.push(
     new CloudWatchTransport({
       logGroupName: process.env.CLOUDWATCH_GROUP_NAME || "fintech-logs",
-      logStreamName: `app-${new Date().toISOString().split("T")[0]}`, // log stream per day
+      logStreamName: `app-${new Date().toISOString().split("T")[0]}`,
       region: process.env.AWS_REGION || "ap-south-1",
     })
   );

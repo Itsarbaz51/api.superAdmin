@@ -13,7 +13,15 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
       url: req.originalUrl,
       status: res.statusCode,
       durationMs: duration,
-      ip: req.ip,
+      clientIp: req.ip,
+      headers: req.headers,
+      httpVersion: req.httpVersion,
+      statusCode: res.statusCode,
+      statusMessage: res.statusMessage,
+      params: req.params,
+      query: req.query,
+      body: req.body,
+      cookies: req.cookies,
     });
   });
 
