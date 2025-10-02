@@ -1,18 +1,18 @@
 import winston from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
 import CloudWatchTransport from "./CloudWatchTransport.js";
+import stringify from 'safe-stable-stringify';
 
 const { combine, timestamp, errors, printf, colorize, json } = winston.format;
 
 const isProd = process.env.NODE_ENV === "production";
 const level = process.env.LOG_LEVEL || "info";
 
-// Dev format with pretty-printing for objects
 const devFormat = printf(({ timestamp, level, message, stack, ...meta }) => {
   const msg =
-    typeof message === "object" ? JSON.stringify(message, null, 2) : message;
+    typeof message === "object" ? stringify(message, null, 2) : message;
   const metaStr = Object.keys(meta).length
-    ? `\n${JSON.stringify(meta, null, 2)}`
+    ? `\n${stringify(meta, null, 2)}`
     : "";
   return `${timestamp} [${level}] ${stack || msg}${metaStr}`;
 });
