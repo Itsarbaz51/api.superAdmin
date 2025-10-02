@@ -30,6 +30,8 @@ app.use(helmet());
 app.use(requestId);
 app.use(requestLogger);
 app.use(rateLimiterMiddleware);
+app.set('trust proxy', true);
+
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok", requestId: req.requestId });
