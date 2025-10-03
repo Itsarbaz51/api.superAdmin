@@ -56,6 +56,17 @@ enum Env {
   STAGING
 }
 
+enum LedgerEntryType {
+  DEBIT
+  CREDIT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 // ==================== ROLE MODEL ====================
 
 model Role {
@@ -134,6 +145,7 @@ model User {
   SystemSetting      SystemSetting[]
   LoginLogs          LoginLogs[]
   Transaction        Transaction[]
+  apiKeys            ApiKey[]
 
   // Indexes for performance
   @@index([parentId])
@@ -152,7 +164,7 @@ model UserKyc {
   lastName   String   @map("last_name")
   fatherName String   @map("father_name")
   dob        DateTime
-  gender     String
+  gender     Gender
 
   addressId String  @map("address_id")
   address   Address @relation(fields: [addressId], references: [id])
@@ -309,7 +321,7 @@ model Wallet {
   user      User      @relation(fields: [userId], references: [id])
   balance   BigInt    @default(0) // stored in paise
   currency  String    @default("INR")
-  isPrimary Boolean   @default(false)
+  isPrimary Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime? @map("deleted_at")
@@ -317,8 +329,7 @@ model Wallet {
   ledgerEntries LedgerEntry[]
   transactions  Transaction[]
 
-  @@unique([userId, isPrimary], map: "unique_primary_wallet")
-  @@index([userId])
+  @@unique([userId])
   @@map("wallets")
 }
 
@@ -336,7 +347,7 @@ model CommissionSetting {
   service   Service @relation(fields: [serviceId], references: [id])
 
   commissionType  CommissionType @map("commission_type")
-  commissionValue Decimal        @map("commission_value") @db.Decimal(8, 2)
+  commissionValue Decimal        @map("commission_value") @db.Decimal(12, 4)
 
   minAmount BigInt? @map("min_amount")
   maxAmount BigInt? @map("max_amount")
@@ -382,6 +393,7 @@ model CommissionEarning {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([transactionId, userId])
+  @@index([serviceId, createdAt])
   @@map("commission_earnings")
 }
 
@@ -403,6 +415,7 @@ model Service {
   UserPermission    UserPermission[]
   RolePermission    RolePermission[]
   Transaction       Transaction[]
+  apiKeyServices    ApiKeyService[]
 
   @@map("services")
 }
@@ -423,6 +436,58 @@ model ServiceProvider {
   Transaction Transaction[]
 
   @@map("service_providers")
+}
+
+model ApiKey {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  key    String  @unique
+  secret String
+  label  String?
+
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services     ApiKeyService[]
+  ipWhitelists ApiKeyIpWhitelist[] // ✅ new relation
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model ApiKeyService {
+  id       String @id @default(uuid())
+  apiKeyId String
+  apiKey   ApiKey @relation(fields: [apiKeyId], references: [id])
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  rateLimit   Int?
+  callbackUrl String?
+
+  @@unique([apiKeyId, serviceId])
+  @@map("api_key_services")
+}
+
+model ApiKeyIpWhitelist {
+  id       String @id @default(uuid())
+  apiKeyId String
+  apiKey   ApiKey @relation(fields: [apiKeyId], references: [id])
+
+  ip   String // ✅ single IP or CIDR block (e.g. 192.168.0.1 or 192.168.0.0/24)
+  note String? // optional - label or description
+
+  createdAt DateTime @default(now())
+
+  @@unique([apiKeyId, ip]) // prevent duplicates
+  @@index([apiKeyId])
+  @@map("api_key_ip_whitelists")
 }
 
 model ProviderCredential {
@@ -571,6 +636,7 @@ model Transaction {
   commissionAmount BigInt
   netAmount        BigInt?
   status           TxStatus         @default(PENDING)
+  rateLimit        Int?
   requestPayload   Json?
   responsePayload  Json?
   errorCode        String?
@@ -584,23 +650,24 @@ model Transaction {
   @@index([userId])
   @@index([idempotencyKey])
   @@index([status, createdAt])
+  @@index([serviceId, createdAt])
   @@map("transactions")
 }
 
 model LedgerEntry {
-  id             String       @id @default(uuid())
-  transactionId  String?      @map("transaction_id")
-  transaction    Transaction? @relation(fields: [transactionId], references: [id])
-  walletId       String?      @map("wallet_id")
-  wallet         Wallet?      @relation(fields: [walletId], references: [id])
-  entryType      String // "DEBIT" or "CREDIT"
+  id             String          @id @default(uuid())
+  transactionId  String?         @map("transaction_id")
+  transaction    Transaction?    @relation(fields: [transactionId], references: [id])
+  walletId       String?         @map("wallet_id")
+  wallet         Wallet?         @relation(fields: [walletId], references: [id])
+  entryType      LedgerEntryType @map("entry_type") // "DEBIT" or "CREDIT"
   amount         BigInt // paise
-  runningBalance BigInt // snapshot after this entry
-  narration      String       @db.Text
-  createdAt      DateTime     @default(now())
-  createdBy      String       @map("created_by")
+  runningBalance BigInt          @map("running_balance") // snapshot after this entry
+  narration      String          @db.Text
+  createdAt      DateTime        @default(now()) @map("created_at")
+  createdBy      String          @map("created_by")
   meta           Json?
-  idempotencyKey String?      @map("idempotency_key")
+  idempotencyKey String?         @map("idempotency_key")
 
   @@index([transactionId])
   @@index([walletId, createdAt])
@@ -609,9 +676,9 @@ model LedgerEntry {
 
 model IdempotencyKey {
   key       String   @id
-  userId    String?
-  createdAt DateTime @default(now())
-  expiresAt DateTime // required to allow TTL cleanup
+  userId    String?  @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expired_at") // required to allow TTL cleanup
   used      Boolean  @default(false)
   meta      Json?
 
@@ -622,12 +689,12 @@ model Refund {
   id            String      @id @default(uuid())
   transactionId String      @map("transaction_id")
   transaction   Transaction @relation(fields: [transactionId], references: [id])
-  initiatedBy   String
+  initiatedBy   String      @map("initiated_by")
   amount        BigInt
   status        TxStatus    @default(PENDING)
   reason        String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
 
   @@map("refunds")
 }
@@ -635,11 +702,11 @@ model Refund {
 model AuditLog {
   id        String   @id @default(uuid())
   entity    String
-  entityId  String
+  entityId  String   @map("entity_id")
   action    String
-  actorId   String?
+  actorId   String?  @map("actor_id")
   payload   Json? // application should limit size
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([entity, entityId])
   @@map("audit_logs")

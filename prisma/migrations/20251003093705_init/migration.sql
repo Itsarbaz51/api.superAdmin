@@ -56,7 +56,7 @@ CREATE TABLE `user_kycs` (
     `last_name` VARCHAR(191) NOT NULL,
     `father_name` VARCHAR(191) NOT NULL,
     `dob` DATETIME(3) NOT NULL,
-    `gender` VARCHAR(191) NOT NULL,
+    `gender` ENUM('MALE', 'FEMALE', 'OTHER') NOT NULL,
     `address_id` VARCHAR(191) NOT NULL,
     `pan_number` VARCHAR(10) NOT NULL,
     `pan_file` VARCHAR(191) NOT NULL,
@@ -172,13 +172,12 @@ CREATE TABLE `wallets` (
     `user_id` VARCHAR(191) NOT NULL,
     `balance` BIGINT NOT NULL DEFAULT 0,
     `currency` VARCHAR(191) NOT NULL DEFAULT 'INR',
-    `isPrimary` BOOLEAN NOT NULL DEFAULT false,
+    `isPrimary` BOOLEAN NOT NULL DEFAULT true,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
     `deleted_at` DATETIME(3) NULL,
 
-    INDEX `wallets_user_id_idx`(`user_id`),
-    UNIQUE INDEX `unique_primary_wallet`(`user_id`, `isPrimary`),
+    UNIQUE INDEX `wallets_user_id_key`(`user_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -190,7 +189,7 @@ CREATE TABLE `commission_settings` (
     `target_user_id` VARCHAR(191) NULL,
     `service_id` VARCHAR(191) NOT NULL,
     `commission_type` ENUM('FLAT', 'PERCENT') NOT NULL,
-    `commission_value` DECIMAL(8, 2) NOT NULL,
+    `commission_value` DECIMAL(12, 4) NOT NULL,
     `min_amount` BIGINT NULL,
     `max_amount` BIGINT NULL,
     `applyTDS` BOOLEAN NOT NULL DEFAULT false,
@@ -223,6 +222,7 @@ CREATE TABLE `commission_earnings` (
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     INDEX `commission_earnings_transaction_id_user_id_idx`(`transaction_id`, `user_id`),
+    INDEX `commission_earnings_service_id_created_at_idx`(`service_id`, `created_at`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -254,6 +254,48 @@ CREATE TABLE `service_providers` (
 
     UNIQUE INDEX `service_providers_name_key`(`name`),
     UNIQUE INDEX `service_providers_code_key`(`code`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `api_keys` (
+    `id` VARCHAR(191) NOT NULL,
+    `user_id` VARCHAR(191) NOT NULL,
+    `key` VARCHAR(191) NOT NULL,
+    `secret` VARCHAR(191) NOT NULL,
+    `label` VARCHAR(191) NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `expiresAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `api_keys_key_key`(`key`),
+    INDEX `api_keys_user_id_idx`(`user_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `api_key_services` (
+    `id` VARCHAR(191) NOT NULL,
+    `apiKeyId` VARCHAR(191) NOT NULL,
+    `serviceId` VARCHAR(191) NOT NULL,
+    `rateLimit` INTEGER NULL,
+    `callbackUrl` VARCHAR(191) NULL,
+
+    UNIQUE INDEX `api_key_services_apiKeyId_serviceId_key`(`apiKeyId`, `serviceId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `api_key_ip_whitelists` (
+    `id` VARCHAR(191) NOT NULL,
+    `apiKeyId` VARCHAR(191) NOT NULL,
+    `ip` VARCHAR(191) NOT NULL,
+    `note` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `api_key_ip_whitelists_apiKeyId_idx`(`apiKeyId`),
+    UNIQUE INDEX `api_key_ip_whitelists_apiKeyId_ip_key`(`apiKeyId`, `ip`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -373,6 +415,7 @@ CREATE TABLE `transactions` (
     `commissionAmount` BIGINT NOT NULL,
     `netAmount` BIGINT NULL,
     `status` ENUM('PENDING', 'SUCCESS', 'FAILED', 'REVERSED', 'REFUNDED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+    `rateLimit` INTEGER NULL,
     `requestPayload` JSON NULL,
     `responsePayload` JSON NULL,
     `errorCode` VARCHAR(191) NULL,
@@ -383,6 +426,7 @@ CREATE TABLE `transactions` (
     INDEX `transactions_user_id_idx`(`user_id`),
     INDEX `transactions_idempotency_key_idx`(`idempotency_key`),
     INDEX `transactions_status_createdAt_idx`(`status`, `createdAt`),
+    INDEX `transactions_service_id_createdAt_idx`(`service_id`, `createdAt`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -391,26 +435,26 @@ CREATE TABLE `ledger_entries` (
     `id` VARCHAR(191) NOT NULL,
     `transaction_id` VARCHAR(191) NULL,
     `wallet_id` VARCHAR(191) NULL,
-    `entryType` VARCHAR(191) NOT NULL,
+    `entry_type` ENUM('DEBIT', 'CREDIT') NOT NULL,
     `amount` BIGINT NOT NULL,
-    `runningBalance` BIGINT NOT NULL,
+    `running_balance` BIGINT NOT NULL,
     `narration` TEXT NOT NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `created_by` VARCHAR(191) NOT NULL,
     `meta` JSON NULL,
     `idempotency_key` VARCHAR(191) NULL,
 
     INDEX `ledger_entries_transaction_id_idx`(`transaction_id`),
-    INDEX `ledger_entries_wallet_id_createdAt_idx`(`wallet_id`, `createdAt`),
+    INDEX `ledger_entries_wallet_id_created_at_idx`(`wallet_id`, `created_at`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `idempotency_keys` (
     `key` VARCHAR(191) NOT NULL,
-    `userId` VARCHAR(191) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `expiresAt` DATETIME(3) NOT NULL,
+    `user_id` VARCHAR(191) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `expired_at` DATETIME(3) NOT NULL,
     `used` BOOLEAN NOT NULL DEFAULT false,
     `meta` JSON NULL,
 
@@ -421,12 +465,12 @@ CREATE TABLE `idempotency_keys` (
 CREATE TABLE `refunds` (
     `id` VARCHAR(191) NOT NULL,
     `transaction_id` VARCHAR(191) NOT NULL,
-    `initiatedBy` VARCHAR(191) NOT NULL,
+    `initiated_by` VARCHAR(191) NOT NULL,
     `amount` BIGINT NOT NULL,
     `status` ENUM('PENDING', 'SUCCESS', 'FAILED', 'REVERSED', 'REFUNDED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
     `reason` VARCHAR(191) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -435,13 +479,13 @@ CREATE TABLE `refunds` (
 CREATE TABLE `audit_logs` (
     `id` VARCHAR(191) NOT NULL,
     `entity` VARCHAR(191) NOT NULL,
-    `entityId` VARCHAR(191) NOT NULL,
+    `entity_id` VARCHAR(191) NOT NULL,
     `action` VARCHAR(191) NOT NULL,
-    `actorId` VARCHAR(191) NULL,
+    `actor_id` VARCHAR(191) NULL,
     `payload` JSON NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    INDEX `audit_logs_entity_entityId_idx`(`entity`, `entityId`),
+    INDEX `audit_logs_entity_entity_id_idx`(`entity`, `entity_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -516,6 +560,18 @@ ALTER TABLE `commission_earnings` ADD CONSTRAINT `commission_earnings_from_user_
 
 -- AddForeignKey
 ALTER TABLE `commission_earnings` ADD CONSTRAINT `commission_earnings_service_id_fkey` FOREIGN KEY (`service_id`) REFERENCES `services`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `api_keys` ADD CONSTRAINT `api_keys_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `api_key_services` ADD CONSTRAINT `api_key_services_apiKeyId_fkey` FOREIGN KEY (`apiKeyId`) REFERENCES `api_keys`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `api_key_services` ADD CONSTRAINT `api_key_services_serviceId_fkey` FOREIGN KEY (`serviceId`) REFERENCES `services`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `api_key_ip_whitelists` ADD CONSTRAINT `api_key_ip_whitelists_apiKeyId_fkey` FOREIGN KEY (`apiKeyId`) REFERENCES `api_keys`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `provider_credentials` ADD CONSTRAINT `provider_credentials_provider_id_fkey` FOREIGN KEY (`provider_id`) REFERENCES `service_providers`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
