@@ -1,4 +1,4 @@
-// import addressRoutes from "./address.routes.js";
+import addressRoutes from "./address.routes.js";
 // import auditLogRoutes from "./auditLog.routes.js";
 // import authRoutes from "./auth.routes.js";
 // import bankRoutes from "./bank.routes.js";
@@ -17,7 +17,7 @@
 // import walletRoutes from "./wallet.routes.js";
 
 export function StaticRoutes(app: any) {
-  // app.use("api/v1/addresses", addressRoutes);
+  app.use("/api/v1/addresses", addressRoutes);
   // app.use("api/v1/audit-logs", auditLogRoutes);
   // app.use("api/v1/auth", authRoutes);
   // app.use("api/v1/banks", bankRoutes);
