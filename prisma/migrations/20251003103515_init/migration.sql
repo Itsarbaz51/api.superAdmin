@@ -172,7 +172,6 @@ CREATE TABLE `wallets` (
     `user_id` VARCHAR(191) NOT NULL,
     `balance` BIGINT NOT NULL DEFAULT 0,
     `currency` VARCHAR(191) NOT NULL DEFAULT 'INR',
-    `isPrimary` BOOLEAN NOT NULL DEFAULT true,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
     `deleted_at` DATETIME(3) NULL,
