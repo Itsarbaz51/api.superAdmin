@@ -321,6 +321,7 @@ model Wallet {
   user      User      @relation(fields: [userId], references: [id])
   balance   BigInt    @default(0) // stored in paise
   currency  String    @default("INR")
+  isPrimary Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime? @map("deleted_at")
