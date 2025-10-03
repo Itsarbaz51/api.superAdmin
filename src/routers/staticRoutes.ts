@@ -1,6 +1,6 @@
 import addressRoutes from "./address.routes.js";
 // import auditLogRoutes from "./auditLog.routes.js";
-// import authRoutes from "./auth.routes.js";
+import authRoutes from "./auth.routes.js";
 // import bankRoutes from "./bank.routes.js";
 // import commissionRoutes from "./commission.routes.js";
 // import idempotencyKeyRoutes from "./idempotencyKey.routes.js";
@@ -19,7 +19,7 @@ import addressRoutes from "./address.routes.js";
 export function StaticRoutes(app: any) {
   app.use("/api/v1/addresses", addressRoutes);
   // app.use("api/v1/audit-logs", auditLogRoutes);
-  // app.use("api/v1/auth", authRoutes);
+  app.use("/api/v1/auth", authRoutes);
   // app.use("api/v1/banks", bankRoutes);
   // app.use("api/v1/commissions", commissionRoutes);
   // app.use("api/v1/idempotency-key", idempotencyKeyRoutes);
