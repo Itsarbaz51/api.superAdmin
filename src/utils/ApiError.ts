@@ -19,22 +19,6 @@ class ApiError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 
-  static send(
-    res: Response,
-    statusCode: number,
-    message: string = "Something went wrong!",
-    errors: any[] = []
-  ) {
-    return res.status(statusCode).json({
-      success: false,
-      message,
-      errors,
-      statusCode,
-      stack:
-        process.env.NODE_ENV === "development" ? new Error().stack : undefined,
-    });
-  }
-
   static badRequest(message: string = "Bad Request", errors: any[] = []) {
     return new ApiError(message, 400, errors);
   }

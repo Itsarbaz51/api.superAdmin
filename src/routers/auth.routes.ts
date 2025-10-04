@@ -6,7 +6,6 @@ import AuthValidationSchemas from "../validations/authValidation.schemas.js";
 
 const authRoutes = Router();
 
-// authRoutes.get("");
 authRoutes.post(
   "/register",
   AuthMiddleware.isAuthenticated,
@@ -14,12 +13,17 @@ authRoutes.post(
   validateRequest(AuthValidationSchemas.register),
   AuthController.register
 );
+
 authRoutes.post(
   "/login",
   validateRequest(AuthValidationSchemas.login),
   AuthController.login
 );
-// authRoutes.put("");
-// authRoutes.delete("");
+
+authRoutes.post(
+  "/logout",
+  AuthMiddleware.isAuthenticated,
+  AuthController.logout
+);
 
 export default authRoutes;

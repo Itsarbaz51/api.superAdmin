@@ -68,7 +68,7 @@ export interface RegisterPayload {
   password: string;
   confirmPassword?: string;
   roleId: string;
-  parentId?: string;
+  parentId: string;
 }
 
 export interface JwtPayload {

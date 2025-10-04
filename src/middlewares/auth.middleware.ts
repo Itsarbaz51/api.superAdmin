@@ -13,7 +13,7 @@ class AuthMiddleware {
         req.headers["authorization"]?.replace("Bearer ", "");
 
       if (!token) {
-        return ApiError.send(res, 401, "Unauthorized: No token provided");
+        throw ApiError.unauthorized("Unauthorized: No token provided");
       }
 
       let decoded: TokenPayload;
@@ -23,7 +23,7 @@ class AuthMiddleware {
           process.env.ACCESS_TOKEN_SECRET!
         ) as TokenPayload;
       } catch (error) {
-        return ApiError.send(res, 401, "Unauthorized: Invalid/Expired token");
+        throw ApiError.unauthorized("Unauthorized: Invalid/Expired token");
       }
 
       const userExists = await Prisma.user.findUnique({
@@ -38,7 +38,7 @@ class AuthMiddleware {
       });
 
       if (!userExists) {
-        return ApiError.send(res, 401, "Unauthorized: Invalid token user");
+        throw ApiError.unauthorized("Unauthorized: Invalid token user");
       }
 
       req.user = {
@@ -57,11 +57,11 @@ class AuthMiddleware {
         const userRole = req.user?.role;
 
         if (!userRole) {
-          return ApiError.send(res, 401, "Unauthorized: No role found");
+          throw ApiError.unauthorized("Unauthorized: No role found");
         }
 
         if (!allowedRoles.includes(userRole)) {
-          return ApiError.send(res, 403, "Forbidden: Insufficient privileges");
+          throw ApiError.forbidden("Forbidden: Insufficient privileges");
         }
 
         return next();

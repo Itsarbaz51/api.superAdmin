@@ -15,17 +15,28 @@ const cookieOptions: import("express").CookieOptions = {
 
 class AuthController {
   static register = asyncHandler(async (req: Request, res: Response) => {
-    const { user, accessToken } = await AuthServices.register(req.body);
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw ApiError.internal("Parent id is missing");
+    }
+
+    const { user, accessToken } = await AuthServices.register({
+      ...req.body,
+      parentId: userId,
+    });
 
     if (!user || !accessToken) {
       throw ApiError.internal("User creation failed!");
     }
 
+    const safeUser = Helper.serializeUser(user);
+
     return res
       .status(201)
       .json(
         ApiResponse.success(
-          { user, accessToken },
+          { user: safeUser, accessToken },
           "User created successfully",
           201
         )
@@ -49,7 +60,20 @@ class AuthController {
       );
   });
 
-  static logout = asyncHandler(async (req: Request, res: Response) => {});
+  static logout = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw ApiError.unauthorized("User not authenticated");
+    }
+
+    await AuthServices.logout(userId);
+
+    res.clearCookie("accessToken", cookieOptions);
+    return res
+      .status(200)
+      .json(ApiResponse.success(null, "Logout successful", 200));
+  });
 
   static refresh = asyncHandler(async (req: Request, res: Response) => {});
 

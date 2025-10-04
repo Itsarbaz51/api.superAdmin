@@ -14,7 +14,6 @@ roleRoutes.post(
   validateRequest(RoleValidationSchemas.store),
   RoleController.store
 );
-// roleRoutes.put("");
 // roleRoutes.delete("");
 
 export default roleRoutes;
