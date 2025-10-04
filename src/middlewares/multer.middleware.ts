@@ -9,7 +9,7 @@ const storage = multer.diskStorage({
     file: Express.Multer.File,
     cb: (error: Error | null, destination: string) => void
   ) {
-    cb(null, "public/uploads");
+    cb(null, "uploads");
   },
   filename: function (
     req: Request,

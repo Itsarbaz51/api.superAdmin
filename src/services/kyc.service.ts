@@ -1,37 +1,37 @@
 import Prisma from "../db/db.js";
-import type { UserKyc, UserKycInput, Gender } from "../types/kyc.types.js";
+import type { UserKyc, UserKycInput, Gender, UserKycUploadInput } from "../types/kyc.types.js";
 import { ApiError } from "../utils/ApiError.js";
 import S3Service from "../utils/S3Service.js";
 
 class KycServices {
-  static async storeUserKyc(payload: UserKycInput): Promise<UserKyc> {
+  static async storeUserKyc(payload: UserKycUploadInput): Promise<UserKyc> {
     const existingKyc = await Prisma.userKyc.findFirst({
       where: { userId: payload.userId },
     });
 
     if (existingKyc) {
-      throw ApiError.badRequest("Invalid payload", [
-        "KYC already exists for this user",
-      ]);
+      throw ApiError.badRequest("KYC already exists for this user");
     }
 
-    // Upload files to S3
-    const panUrl = await S3Service.upload(payload.panFile, "user-kyc");
-    const aadhaarUrl = await S3Service.upload(payload.aadhaarFile, "user-kyc");
-    const addressProofUrl = await S3Service.upload(
-      payload.addressProofFile,
-      "user-kyc"
-    );
+    // Convert File objects to local file paths before uploading
+    const panPath = (payload.panFile as any).path;
+    const photoPath = (payload.photo as any).path;
+    const aadhaarPath = (payload.aadhaarFile as any).path;
+    const addressProofPath = (payload.addressProofFile as any).path;
 
-    if (!panUrl || !aadhaarUrl || !addressProofUrl) {
-      throw ApiError.internal("File Upload Failed", [
-        "Failed to upload one or more KYC documents.",
-      ]);
+    const panUrl = await S3Service.upload(panPath, "user-kyc");
+    const photoUrl = await S3Service.upload(photoPath, "user-kyc");
+    const aadhaarUrl = await S3Service.upload(aadhaarPath, "user-kyc");
+    const addressProofUrl = await S3Service.upload(addressProofPath, "user-kyc");
+
+    if (!panUrl || !photoUrl || !aadhaarUrl || !addressProofUrl) {
+      throw ApiError.internal("Failed to upload one or more KYC documents");
     }
 
-    // Replace payload file paths with uploaded URLs
+    // Convert to DB payload (with URLs)
     const newPayload: UserKycInput = {
       ...payload,
+      photo: photoUrl,
       panFile: panUrl,
       aadhaarFile: aadhaarUrl,
       addressProofFile: addressProofUrl,
@@ -44,12 +44,6 @@ class KycServices {
         businessKyc: true,
       },
     });
-
-    if (!createdKyc) {
-      throw ApiError.internal("Internal Server Error", [
-        "Failed to create KYC record. Please try again later.",
-      ]);
-    }
 
     return {
       ...createdKyc,

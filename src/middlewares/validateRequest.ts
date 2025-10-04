@@ -5,7 +5,7 @@ export const validateRequest = (schema: ZodSchema<any>) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     const result = await schema.safeParseAsync(req.body);
     if (!result.success) {
-      return next(result.error); // Yeh error global handler me jayega
+      return next(result.error); 
     }
     req.body = result.data;
     next();

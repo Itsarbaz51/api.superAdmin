@@ -4,7 +4,6 @@ import { Gender } from "../types/kyc.types.js";
 class KycValidationSchemas {
   static get UserKyc() {
     return z.object({
-      userId: z.string().uuid("User ID must be a valid UUID."),
       photo: z.string().url("Photo must be a valid URL."),
       firstName: z
         .string()
@@ -25,15 +24,15 @@ class KycValidationSchemas {
       panNumber: z
         .string()
         .length(10, "PAN number must be exactly 10 characters.")
-        .regex(
-          /^[A-Z]{5}[0-9]{4}[A-Z]$/,
-          "PAN number format is invalid."
-        ),
+        .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "PAN number format is invalid."),
       panFile: z.string().url("PAN file must be a valid URL."),
       aadhaarNumber: z
         .string()
         .length(12, "Aadhaar number must be exactly 12 digits.")
-        .regex(/^[0-9]{12}$/, "Aadhaar number must contain only numeric digits."),
+        .regex(
+          /^[0-9]{12}$/,
+          "Aadhaar number must contain only numeric digits."
+        ),
       aadhaarFile: z
         .string()
         .url("Aadhaar file must be a valid URL.")
@@ -47,6 +46,7 @@ class KycValidationSchemas {
           message: "Address proof must be an image (JPG, JPEG, PNG, or WEBP).",
         }),
       businessKycId: z.string().uuid("Business KYC ID must be a valid UUID."),
+      // deletedAt: z.date().null(),
     });
   }
 }

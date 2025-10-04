@@ -1,60 +1,63 @@
-import type { Address } from "./address.types.js";
-
-// ==================== Enums ====================
 export enum Gender {
   MALE = "MALE",
   FEMALE = "FEMALE",
   OTHER = "OTHER",
 }
 
-// ==================== UserKyc DB Type ====================
-export interface UserKyc {
-  id: string;
+export interface UserKycUploadInput {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  fatherName: string;
+  gender: Gender;
+  dob: Date;
+  addressId: string;
+  panNumber: string;
+  aadhaarNumber: string;
+  businessKycId?: string;
+
+  photo: Express.Multer.File;
+
+  panFile: Express.Multer.File;
+  aadhaarFile: Express.Multer.File;
+  addressProofFile: Express.Multer.File;
+}
+
+export interface UserKycInput {
   userId: string;
   photo: string;
   firstName: string;
   lastName: string;
   fatherName: string;
-  dob: Date;
   gender: Gender;
-
+  dob: Date;
   addressId: string;
-  address: Address;
-
   panNumber: string;
-  panFile: string;
-
   aadhaarNumber: string;
+  businessKycId?: string;
+
+  panFile: string; // S3 URL
   aadhaarFile: string;
-
   addressProofFile: string;
-
-  createdAt: Date;
-  updatedAt: Date;
-
-  businessKycId: string;
-  businessKyc: BusinessKyc;
-
-  deletedAt?: Date | null;
 }
-
-// ==================== UserKyc Input Type ====================
-export type UserKycInput = Omit<
-  UserKyc,
-  "id" | "address" | "createdAt" | "updatedAt" | "businessKyc" | "deletedAt"
->;
-
-
-export interface BusinessKyc {
+export interface UserKyc {
   id: string;
   userId: string;
-  businessName: string;
-  businessType: "PROPRIETORSHIP" | "PARTNERSHIP" | "PRIVATE_LIMITED";
+  firstName: string;
+  lastName: string;
+  fatherName: string;
+  gender: Gender;
+  dob: Date;
   addressId: string;
   panNumber: string;
-  panFile: string;
-  gstNumber: string;
-  gstFile: string;
+  aadhaarNumber: string;
+  businessKycId?: string;
+
+  panFile: Express.Multer.File | string;
+  photo: Express.Multer.File | string;
+  aadhaarFile: Express.Multer.File | string;
+  addressProofFile: Express.Multer.File | string;
+  deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
