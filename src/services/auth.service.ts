@@ -71,6 +71,7 @@ class AuthServices {
         status: "ACTIVE",
         hierarchyLevel,
         hierarchyPath,
+        parentId,
         refreshToken: null,
       },
       include: {
@@ -164,9 +165,14 @@ class AuthServices {
     return { user, accessToken };
   }
 
-  //   static async logout(userId: string): Promise<void> {
-  //     // Logout logic
-  //   }
+  static async logout(userId: string): Promise<void> {
+    if (!userId) return;
+
+    await Prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: null },
+    });
+  }
 
   //   static async refreshToken(token: string): Promise<{ token: string }> {
   //     // Token refresh logic
