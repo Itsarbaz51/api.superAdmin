@@ -1,10 +1,20 @@
-// import { Router } from "express";
+import { Router } from "express";
+import RoleController from "../controllers/role.controller.js";
+import AuthMiddleware from "../middlewares/auth.middleware.js";
+import RoleValidationSchemas from "../validations/roleValidation.schemas.js";
+import { validateRequest } from "../middlewares/validateRequest.js";
 
-// const roleRoutes = Router();
+const roleRoutes = Router();
 
 // roleRoutes.get("");
-// roleRoutes.post("");
+roleRoutes.post(
+  "/create",
+  AuthMiddleware.isAuthenticated,
+  AuthMiddleware.authorizeRoles(["SUPER ADMIN"]),
+  validateRequest(RoleValidationSchemas.store),
+  RoleController.store
+);
 // roleRoutes.put("");
 // roleRoutes.delete("");
 
-// export default roleRoutes;
+export default roleRoutes;

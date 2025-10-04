@@ -44,6 +44,14 @@ class Helper {
 
     return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, options);
   };
+
+  static serializeUser(user: any) {
+    return JSON.parse(
+      JSON.stringify(user, (key, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
+    );
+  }
 }
 
 export default Helper;

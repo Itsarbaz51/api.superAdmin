@@ -70,13 +70,14 @@ enum Gender {
 // ==================== ROLE MODEL ====================
 
 model Role {
-  id          String  @id @default(uuid())
-  name        String  @unique
-  level       Int     @unique
-  description String? @db.LongText
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  id            String   @id @default(uuid())
+  name          String   @unique
+  level         Int      @unique
+  description   String?  @db.LongText
+  createdBy     String?  @map("created_by")
+  createdByUser User?    @relation("RoleCreatedBy", fields: [createdBy], references: [id])
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
 
   users             User[]
   rolePermissions   RolePermission[]
@@ -122,13 +123,15 @@ model User {
   updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
+  // reverse relation for createdBy
+  createdRoles Role[] @relation("RoleCreatedBy")
+
   // Role relation (recommended: roleId as FK)
   roleId String @map("role_id")
   role   Role   @relation(fields: [roleId], references: [id])
 
   //tokens
-  refreshToken          String?   @unique @map("refresh_token")
-  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  refreshToken String? @unique @map("refresh_token")
 
   // Service relation
   userPermissions UserPermission[]

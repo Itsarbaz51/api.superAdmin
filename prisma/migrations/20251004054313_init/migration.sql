@@ -4,6 +4,7 @@ CREATE TABLE `roles` (
     `name` VARCHAR(191) NOT NULL,
     `level` INTEGER NOT NULL,
     `description` LONGTEXT NULL,
+    `created_by` VARCHAR(191) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
@@ -35,8 +36,8 @@ CREATE TABLE `users` (
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `deleted_at` DATETIME(3) NULL,
     `role_id` VARCHAR(191) NOT NULL,
-    `refresh_token` VARCHAR(191) NOT NULL,
-    `refresh_token_expires_at` DATETIME(3) NOT NULL,
+    `refresh_token` VARCHAR(191) NULL,
+    `refresh_token_expires_at` DATETIME(3) NULL,
 
     UNIQUE INDEX `users_email_key`(`email`),
     UNIQUE INDEX `users_phone_number_key`(`phone_number`),
@@ -503,6 +504,9 @@ CREATE TABLE `pii_consents` (
     INDEX `pii_consents_user_id_idx`(`user_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `roles` ADD CONSTRAINT `roles_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `users` ADD CONSTRAINT `users_parent_id_fkey` FOREIGN KEY (`parent_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

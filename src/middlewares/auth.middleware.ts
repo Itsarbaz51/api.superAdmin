@@ -3,7 +3,7 @@ import type { Response, NextFunction } from "express";
 import { ApiError } from "../utils/ApiError.js";
 import asyncHandler from "../utils/AsyncHandler.js";
 import Prisma from "../db/db.js";
-import type { AuthRequest, TokenPayload } from "../types/types.js";
+import type { AuthRequest, TokenPayload } from "../types/auth.types.js";
 
 class AuthMiddleware {
   static isAuthenticated = asyncHandler(

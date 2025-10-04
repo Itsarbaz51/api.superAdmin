@@ -8,3 +8,7 @@ export const s3Env = {
   region: process.env.AWS_REGION!,
   bucketName: process.env.S3_BUCKET_NAME!,
 };
+
+export const jwtEnv = {
+  REFRESH_TOKEN_EXPIRY: process.env.REFRESH_TOKEN_EXPIRY!,
+};

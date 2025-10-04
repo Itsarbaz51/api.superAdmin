@@ -31,7 +31,7 @@ class AuthValidationSchemas {
         domainName: z.string().min(1, "Domain name is required"),
         password: z.string().min(8, "Password must be at least 8 characters"),
         confirmPassword: z.string().min(6, "Confirm password is required"),
-        roleId: string().uuid(),
+        roleId: z.string().uuid(),
       })
       .refine((data) => data.password === data.confirmPassword, {
         message: "Passwords do not match",
@@ -41,8 +41,8 @@ class AuthValidationSchemas {
 
   static get login() {
     return z.object({
-      email: z.string().email("Invalid email address"),
-      password: z.string().min(6, "Password must be at least 6 characters"),
+      emailOrUsername: z.string(),
+      password: z.string(),
     });
   }
 }

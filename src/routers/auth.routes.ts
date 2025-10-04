@@ -1,10 +1,24 @@
 import { Router } from "express";
 import AuthController from "../controllers/auth.controller.js";
+import AuthMiddleware from "../middlewares/auth.middleware.js";
+import { validateRequest } from "../middlewares/validateRequest.js";
+import AuthValidationSchemas from "../validations/authValidation.schemas.js";
 
 const authRoutes = Router();
 
 // authRoutes.get("");
-authRoutes.post("/register", AuthController.register);
+authRoutes.post(
+  "/register",
+  AuthMiddleware.isAuthenticated,
+  AuthMiddleware.authorizeRoles(["SUPER ADMIN"]),
+  validateRequest(AuthValidationSchemas.register),
+  AuthController.register
+);
+authRoutes.post(
+  "/login",
+  validateRequest(AuthValidationSchemas.login),
+  AuthController.login
+);
 // authRoutes.put("");
 // authRoutes.delete("");
 

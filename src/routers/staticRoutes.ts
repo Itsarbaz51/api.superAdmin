@@ -9,7 +9,7 @@ import authRoutes from "./auth.routes.js";
 // import loginLogRoutes from "./loginLog.routes.js";
 // import permissionRoutes from "./permission.routes.js";
 // import piiConsentRoutes from "./piiConsent.routes.js";
-// import roleRoutes from "./role.routes.js";
+import roleRoutes from "./role.routes.js";
 // import serviceRoutes from "./service.routes.js";
 // import systemSettingRoutes from "./systemSetting.routes.js";
 // import transactionRoutes from "./transaction.routes.js";
@@ -28,7 +28,7 @@ export function StaticRoutes(app: any) {
   // app.use("api/v1/login-logs", loginLogRoutes);
   // app.use("api/v1/permissions", permissionRoutes);
   // app.use("api/v1/pii-consent", piiConsentRoutes);
-  // app.use("api/v1/roles", roleRoutes);
+  app.use("/api/v1/roles", roleRoutes);
   // app.use("api/v1/services", serviceRoutes);
   // app.use("api/v1/system-setting", systemSettingRoutes);
   // app.use("api/v1/transactions", transactionRoutes);

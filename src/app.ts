@@ -6,6 +6,7 @@ import { StaticRoutes } from "./routers/staticRoutes.js";
 import { requestId } from "./middlewares/requestId.middleware.js";
 import { requestLogger } from "./middlewares/requestLogger.middleware.js";
 import { rateLimiterMiddleware } from "./middlewares/rateLimiter.middleware.js";
+import { errorHandler } from "./middlewares/errorHandler.js";
 
 const app = express();
 
@@ -30,13 +31,13 @@ app.use(helmet());
 app.use(requestId);
 app.use(requestLogger);
 app.use(rateLimiterMiddleware);
-app.set('trust proxy', true);
-
+app.set("trust proxy", true);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok", requestId: req.requestId });
 });
 
 StaticRoutes(app);
+app.use(errorHandler);
 
 export default app;

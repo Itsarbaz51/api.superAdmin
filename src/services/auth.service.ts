@@ -1,6 +1,10 @@
 import bcrypt from "bcryptjs";
 import Prisma from "../db/db.js";
-import type { RegisterPayload, User } from "../types/auth.types.js";
+import type {
+  LoginPayload,
+  RegisterPayload,
+  User,
+} from "../types/auth.types.js";
 import { ApiError } from "../utils/ApiError.js";
 import Helper from "../utils/helper.js";
 
@@ -23,22 +27,16 @@ class AuthServices {
       parentId,
     } = payload;
 
-    // 1. Duplicate user check
     const existingUser = await Prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { phoneNumber }, { username }, { domainName }],
-      },
+      where: { OR: [{ email }, { phoneNumber }, { username }, { domainName }] },
     });
+    if (existingUser) throw ApiError.badRequest("User already exists");
 
-    if (existingUser) {
-      throw ApiError.badRequest(
-        "User already exists with provided credentials"
-      );
-    }
+    const role = await Prisma.role.findUnique({ where: { id: roleId } });
+    if (!role) throw ApiError.badRequest("Invalid roleId");
 
-    // 2. Hash password and transaction pin
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const hashedPin = await bcrypt.hash(transactionPin, 10);
+    const hashedPassword = await Helper.hashPassword(password);
+    const hashedPin = await Helper.hashPassword(transactionPin);
 
     // 3. Hierarchy metadata
     let hierarchyLevel = 0;
@@ -74,7 +72,6 @@ class AuthServices {
         hierarchyLevel,
         hierarchyPath,
         refreshToken: null,
-        refreshTokenExpiresAt: null,
       },
       include: {
         role: {
@@ -124,9 +121,48 @@ class AuthServices {
     return { user, accessToken };
   }
 
-  //   static async login(payload: LoginPayload): Promise<{ user: User; token: string }> {
-  //     // Login logic
-  //   }
+  static async login(
+    payload: LoginPayload
+  ): Promise<{ user: User; accessToken: string }> {
+    const { emailOrUsername, password } = payload;
+
+    const user = await Prisma.user.findFirst({
+      where: {
+        OR: [{ email: emailOrUsername }, { username: emailOrUsername }],
+      },
+      include: {
+        role: true,
+        wallets: true,
+      },
+    });
+
+    if (!user) throw ApiError.unauthorized("Invalid credentials");
+
+    // 2. Verify password
+    const isValid = await Helper.comparePassword(password, user.password);
+    if (!isValid) throw ApiError.unauthorized("Invalid credentials");
+
+    // 3. Generate tokens
+    const accessToken = Helper.generateAccessToken({
+      id: user.id,
+      email: user.email,
+      role: user.role.name,
+    });
+
+    const refreshToken = Helper.generateRefreshToken({
+      id: user.id,
+      email: user.email,
+    });
+
+    await Prisma.user.update({
+      where: { id: user.id },
+      data: {
+        refreshToken,
+      },
+    });
+
+    return { user, accessToken };
+  }
 
   //   static async logout(userId: string): Promise<void> {
   //     // Logout logic
