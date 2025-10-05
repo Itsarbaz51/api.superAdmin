@@ -1,63 +1,101 @@
 import type { Request, Response } from "express";
 import asyncHandler from "../utils/AsyncHandler.js";
-import KycValidationSchemas from "../validations/kycValidation.schemas.js";
 import KycServices from "../services/kyc.service.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 
 class UserKycController {
-  static index = asyncHandler(async (req: Request, res: Response) => {});
-  static show = asyncHandler(async (req: Request, res: Response) => {});
-  static store = asyncHandler(async (req: Request, res: Response) => {
-    // Validate request body
-
+  static index = asyncHandler(async (req: Request, res: Response) => { });
+  static show = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.id;
-    if (!userId) {
-      throw ApiError.internal("User ID not found in request");
+    if (!userId) throw ApiError.internal("User ID not found in request");
+
+    const { id } = req.params;
+    if (!id) {
+      throw ApiError.badRequest("KYC ID is required");
     }
+
+    const kycData = await KycServices.showUserKyc(userId, id);
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(kycData, "User KYC fetched successfully", 201));
+  });
+  static store = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) throw ApiError.internal("User ID not found in request");
 
     const files = req.files as {
-      [fieldname: string]: Express.Multer.File[];
+      panFile?: Express.Multer.File[];
+      aadhaarFile?: Express.Multer.File[];
+      addressProofFile?: Express.Multer.File[];
+      photo?: Express.Multer.File[];
     };
 
-    const panFile = files?.panFile?.[0];
-    const aadhaarFile = files?.aadhaarFile?.[0];
-    const addressProofFile = files?.addressProofFile?.[0];
-    const photo = files?.photo?.[0];
+    const panFile = files.panFile?.[0];
+    const aadhaarFile = files.aadhaarFile?.[0];
+    const addressProofFile = files.addressProofFile?.[0];
+    const photo = files.photo?.[0];
 
     if (!panFile || !aadhaarFile || !addressProofFile || !photo) {
-      throw ApiError.badRequest(
-        "All KYC files (PAN, Aadhaar, Address Proof) are required."
-      );
+      throw ApiError.badRequest("All KYC files are required (PAN, Aadhaar, Address Proof, Photo).");
     }
 
-    // Store KYC
     const dbStoreData = await KycServices.storeUserKyc({
       ...req.body,
-      userId,
       panFile,
       aadhaarFile,
       addressProofFile,
+      photo,
+      userId,
     });
 
-    // Send structured API response
     return res
       .status(201)
-      .json(
-        ApiResponse.success(dbStoreData, "User KYC created successfully", 201)
-      );
+      .json(ApiResponse.success(dbStoreData, "User KYC submit waiting for approval", 201));
   });
+  static verification = asyncHandler(async (req: Request, res: Response) => { })
 }
 
 class BusinessKycController {
-  static index = asyncHandler(async (req: Request, res: Response) => {});
-  static show = asyncHandler(async (req: Request, res: Response) => {});
-  static store = asyncHandler(async (req: Request, res: Response) => {});
-  static update = asyncHandler(async (req: Request, res: Response) => {});
-  static destroy = asyncHandler(async (req: Request, res: Response) => {});
-  static businessKycVerification = asyncHandler(
-    async (req: Request, res: Response) => {}
-  );
+  static index = asyncHandler(async (req: Request, res: Response) => { });
+  static show = asyncHandler(async (req: Request, res: Response) => { });
+  static store = asyncHandler(async (req: Request, res: Response) => {
+    const files = req.files as { [key: string]: Express.Multer.File[] };
+
+    const getFile = (name: string) => files?.[name]?.[0] || null;
+
+    const panFile = getFile("panFile");
+    const gstFile = getFile("gstFile");
+    const brDoc = getFile("brDoc");
+    const partnershipDeed = getFile("partnershipDeed");
+    const moaFile = getFile("moaFile");
+    const aoaFile = getFile("aoaFile");
+    const directorShareholding = getFile("directorShareholding");
+
+    if (!panFile || !gstFile) {
+      throw ApiError.badRequest("PAN and GST files are required");
+    }
+
+    const dbStoreData = await KycServices.storeBusinessKyc({
+      ...req.body,
+      userId: req.user?.id!,
+      panFile,
+      gstFile,
+      brDoc,
+      partnershipDeed,
+      moaFile,
+      aoaFile,
+      directorShareholding,
+    });
+
+    return res
+      .status(201)
+      .json(ApiResponse.success(dbStoreData, "Business KYC submit waiting for approval", 201));
+  });
+  static update = asyncHandler(async (req: Request, res: Response) => { });
+  static destroy = asyncHandler(async (req: Request, res: Response) => { });
+  static verification = asyncHandler(async (req: Request, res: Response) => { });
 }
 
 export { UserKycController, BusinessKycController };
