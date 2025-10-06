@@ -37,7 +37,6 @@ CREATE TABLE `users` (
     `deleted_at` DATETIME(3) NULL,
     `role_id` VARCHAR(191) NOT NULL,
     `refresh_token` VARCHAR(191) NULL,
-    `refresh_token_expires_at` DATETIME(3) NULL,
 
     UNIQUE INDEX `users_email_key`(`email`),
     UNIQUE INDEX `users_phone_number_key`(`phone_number`),
@@ -58,6 +57,7 @@ CREATE TABLE `user_kycs` (
     `father_name` VARCHAR(191) NOT NULL,
     `dob` DATETIME(3) NOT NULL,
     `gender` ENUM('MALE', 'FEMALE', 'OTHER') NOT NULL,
+    `status` ENUM('PENDING', 'VERIFIED', 'REJECT') NOT NULL DEFAULT 'PENDING',
     `address_id` VARCHAR(191) NOT NULL,
     `pan_number` VARCHAR(10) NOT NULL,
     `pan_file` VARCHAR(191) NOT NULL,
@@ -80,6 +80,7 @@ CREATE TABLE `business_kycs` (
     `user_id` VARCHAR(191) NOT NULL,
     `business_name` TEXT NOT NULL,
     `business_type` ENUM('PROPRIETORSHIP', 'PARTNERSHIP', 'PRIVATE_LIMITED') NOT NULL,
+    `status` ENUM('PENDING', 'VERIFIED', 'REJECT') NOT NULL DEFAULT 'PENDING',
     `address_id` VARCHAR(191) NOT NULL,
     `pan_number` VARCHAR(10) NOT NULL,
     `pan_file` VARCHAR(191) NOT NULL,

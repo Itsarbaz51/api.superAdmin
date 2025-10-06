@@ -67,6 +67,12 @@ enum Gender {
   OTHER
 }
 
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECT
+}
+
 // ==================== ROLE MODEL ====================
 
 model Role {
@@ -174,6 +180,7 @@ model UserKyc {
   fatherName String   @map("father_name")
   dob        DateTime
   gender     Gender
+  status     KycStatus @default(PENDING)
 
   addressId String  @map("address_id")
   address   Address @relation(fields: [addressId], references: [id])
@@ -206,6 +213,7 @@ model BusinessKyc {
   user         User         @relation(fields: [userId], references: [id])
   businessName String       @map("business_name") @db.Text
   businessType BusinessType @map("business_type")
+  status       KycStatus    @default(PENDING)
 
   addressId String  @map("address_id")
   address   Address @relation(fields: [addressId], references: [id])

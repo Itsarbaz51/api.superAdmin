@@ -30,16 +30,18 @@ const upload = multer({
     file: Express.Multer.File,
     cb: FileFilterCallback
   ) {
-    const allowedTypes = /jpeg|jpg|webp|avif|png/;
+    const allowedTypes = /jpeg|jpg|webp|png|pdf/;
     const extname = allowedTypes.test(
       path.extname(file.originalname).toLowerCase()
     );
+    console.log("file===============", file);
+    
     const mimetype = allowedTypes.test(file.mimetype);
 
     if (mimetype && extname) {
       cb(null, true);
     } else {
-      cb(new Error("Only .jpeg, .jpg, webp, avif, .png files are allowed."));
+      cb(new Error("Only .jpeg, .jpg, webp, .png, .pdf files are allowed."));
     }
   },
 });

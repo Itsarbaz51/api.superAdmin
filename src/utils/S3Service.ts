@@ -38,6 +38,8 @@ class S3Service {
     localFilePath: string,
     category: UploadCategory
   ): Promise<string | null> {
+    console.log(localFilePath);
+    
     try {
       if (!localFilePath) {
         console.error("No file path provided.");
@@ -56,7 +58,7 @@ class S3Service {
         Key: s3Key,
         Body: fileStream,
         ContentType: mimeType,
-        ACL: "public-read" as ObjectCannedACL, // cast to correct type here
+        // ACL: "privet" as ObjectCannedACL, // cast to correct type here
       };
 
       const command = new PutObjectCommand(uploadParams);
