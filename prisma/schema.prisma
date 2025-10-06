@@ -133,6 +133,12 @@ model User {
   //tokens
   refreshToken String? @unique @map("refresh_token")
 
+  // tokens for password reset / email verification
+  passwordResetToken     String?   @map("password_reset_token")
+  passwordResetExpires   DateTime? @map("password_reset_expires")
+  emailVerificationToken String?   @map("email_verification_token")
+  emailVerifiedAt        DateTime? @map("email_verified_at")
+
   // Service relation
   userPermissions UserPermission[]
   bankAccount     BankDetail[]

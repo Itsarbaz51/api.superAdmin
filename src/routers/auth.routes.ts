@@ -26,4 +26,30 @@ authRoutes.post(
   AuthController.logout
 );
 
+authRoutes.post(
+  "/refresh",
+  AuthMiddleware.isAuthenticated,
+  AuthController.refreshToken
+);
+authRoutes.post(
+  "/forgot-password",
+  validateRequest(AuthValidationSchemas.forgotPassword),
+  AuthController.forgotPassword
+);
+
+authRoutes.post(
+  "/reset-password",
+  AuthMiddleware.isAuthenticated,
+  validateRequest(AuthValidationSchemas.resetPassword),
+
+  AuthController.resetPassword
+);
+authRoutes.get("/verify-email", AuthController.verifyEmail);
+
+authRoutes.get(
+  "/users/:id",
+  AuthMiddleware.isAuthenticated,
+  AuthController.getUserById
+);
+
 export default authRoutes;

@@ -30,6 +30,8 @@ class AuthController {
       throw ApiError.internal("User creation failed!");
     }
 
+    // await AuthServices.createAndSendEmailVerification(user);
+
     const safeUser = Helper.serializeUser(user);
 
     return res
@@ -44,13 +46,16 @@ class AuthController {
   });
 
   static login = asyncHandler(async (req: Request, res: Response) => {
-    const { user, accessToken } = await AuthServices.login(req.body);
+    const { user, accessToken, refreshToken } = await AuthServices.login(
+      req.body
+    );
 
     const safeUser = Helper.serializeUser(user);
 
     return res
       .status(200)
       .cookie("accessToken", accessToken, cookieOptions)
+      .cookie("refreshToken", refreshToken, cookieOptions)
       .json(
         ApiResponse.success(
           { accessToken },
@@ -70,22 +75,86 @@ class AuthController {
     await AuthServices.logout(userId);
 
     res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
     return res
       .status(200)
       .json(ApiResponse.success(null, "Logout successful", 200));
   });
 
-  static refresh = asyncHandler(async (req: Request, res: Response) => {});
+  static refreshToken = asyncHandler(async (req: Request, res: Response) => {
+    const incomingRefresh = req.cookies?.refreshToken;
 
-  static forgotPassword = asyncHandler(
-    async (req: Request, res: Response) => {}
-  );
+    if (!incomingRefresh) {
+      throw ApiError.unauthorized("Refresh token missing");
+    }
 
-  static resetPassword = asyncHandler(
-    async (req: Request, res: Response) => {}
-  );
+    const { accessToken, refreshToken, user } =
+      await AuthServices.refreshToken(incomingRefresh);
 
-  static verifyEmail = asyncHandler(async (req: Request, res: Response) => {});
+    res.cookie("refreshToken", refreshToken, {
+      ...cookieOptions,
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
+    res.cookie("accessToken", accessToken, cookieOptions);
+
+    const safeUser = Helper.serializeUser(user);
+
+    return res
+      .status(200)
+      .json(
+        ApiResponse.success(
+          { accessToken, user: safeUser },
+          "Token refreshed",
+          200
+        )
+      );
+  });
+
+  static forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    if (!email) {
+      throw ApiError.badRequest("Email is required");
+    }
+
+    const result = await AuthServices.forgotPassword(email);
+
+    return res.status(200).json(ApiResponse.success(null, result.message, 200));
+  });
+
+  static resetPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      throw ApiError.badRequest("token and newPassword required");
+    }
+
+    const result = await AuthServices.resetPassword(token, newPassword);
+
+    return res.status(200).json(ApiResponse.success(null, result.message, 200));
+  });
+
+  static getUserById = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.params.id ?? req.user?.id;
+
+    if (!userId) throw ApiError.badRequest("userId required");
+
+    const user = await AuthServices.getUserById(userId);
+
+    return res
+      .status(200)
+      .json(ApiResponse.success({ user }, "User fetched", 200));
+  });
+
+  static verifyEmail = asyncHandler(async (req: Request, res: Response) => {
+    const { token } = req.query; // token may come as query param from link
+
+    if (!token) throw ApiError.badRequest("token required");
+
+    const result = await AuthServices.verifyEmail(String(token));
+
+    return res.status(200).json(ApiResponse.success(null, result.message, 200));
+  });
 }
 
 export default AuthController;
