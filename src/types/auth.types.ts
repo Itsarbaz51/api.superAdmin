@@ -19,10 +19,11 @@ export interface AuthRequest extends Request {
 export interface User {
   id: string;
   username: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string | null;
+  lastName?: string | null;
   profileImage?: string;
   email: string;
+  password: string;
   phoneNumber: string;
   domainName: string;
   isAuthorized: boolean;
@@ -35,7 +36,6 @@ export interface User {
   refreshToken?: string | null;
   refreshTokenExpiresAt?: Date | null;
 
-  // Relations
   role?: {
     id: string;
     name: string;
@@ -49,8 +49,19 @@ export interface User {
     isPrimary: boolean;
   }[];
 
-  parent?: Pick<User, "id" | "username" | "firstName" | "lastName"> | null;
-  children?: Pick<User, "id" | "username" | "firstName" | "lastName">[];
+  parent?: {
+    id: string;
+    username: string;
+    firstName?: string | null;
+    lastName?: string | null;
+  } | null;
+
+  children?: {
+    id: string;
+    username: string;
+    firstName?: string | null;
+    lastName?: string | null;
+  }[];
 
   hierarchyLevel: number;
   hierarchyPath: string;
@@ -71,10 +82,16 @@ export interface RegisterPayload {
   parentId: string;
 }
 
-export interface JwtPayload {
+export interface JwtInput {
   id: string;
   email: string;
   role: string;
+}
+
+export interface JwtPayload extends JwtInput {
+  jti?: string;
+  exp?: number; // optional
+  iat?: number;
 }
 
 export interface LoginPayload {

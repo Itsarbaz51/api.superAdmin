@@ -140,10 +140,11 @@ model User {
   refreshToken String? @unique @map("refresh_token")
 
   // tokens for password reset / email verification
-  passwordResetToken     String?   @map("password_reset_token")
-  passwordResetExpires   DateTime? @map("password_reset_expires")
-  emailVerificationToken String?   @map("email_verification_token")
-  emailVerifiedAt        DateTime? @map("email_verified_at")
+  passwordResetToken            String?   @map("password_reset_token")
+  passwordResetExpires          DateTime? @map("password_reset_expires")
+  emailVerificationToken        String?   @map("email_verification_token")
+  emailVerifiedAt               DateTime? @map("email_verified_at")
+  emailVerificationTokenExpires DateTime? @map("email_verification_token_expires")
 
   // Service relation
   userPermissions UserPermission[]
@@ -161,6 +162,7 @@ model User {
   LoginLogs          LoginLogs[]
   Transaction        Transaction[]
   apiKeys            ApiKey[]
+  auditLogs          AuditLog[]
 
   // Indexes for performance
   @@index([parentId])
@@ -171,13 +173,13 @@ model User {
 // ============ User KYC & VERIFICATION MODELS ============
 
 model UserKyc {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
   photo      String
-  user       User     @relation(fields: [userId], references: [id])
-  firstName  String   @map("first_name")
-  lastName   String   @map("last_name")
-  fatherName String   @map("father_name")
+  user       User      @relation(fields: [userId], references: [id])
+  firstName  String    @map("first_name")
+  lastName   String    @map("last_name")
+  fatherName String    @map("father_name")
   dob        DateTime
   gender     Gender
   status     KycStatus @default(PENDING)
@@ -718,15 +720,12 @@ model Refund {
 
 model AuditLog {
   id        String   @id @default(uuid())
-  entity    String
-  entityId  String   @map("entity_id")
+  userId    String?
   action    String
-  actorId   String?  @map("actor_id")
-  payload   Json? // application should limit size
-  createdAt DateTime @default(now()) @map("created_at")
+  metadata  Json?
+  createdAt DateTime @default(now())
 
-  @@index([entity, entityId])
-  @@map("audit_logs")
+  user User? @relation(fields: [userId], references: [id])
 }
 
 model PiiConsent {

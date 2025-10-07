@@ -1,9 +1,11 @@
+// controllers/auth.controller.ts
 import type { Request, Response } from "express";
 import asyncHandler from "../utils/AsyncHandler.js";
 import AuthServices from "../services/auth.service.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import Helper from "../utils/helper.js";
+import logger from "../utils/WinstonLogger.js";
 
 const cookieOptions: import("express").CookieOptions = {
   httpOnly: true,
@@ -18,6 +20,7 @@ class AuthController {
     const userId = req.user?.id;
 
     if (!userId) {
+      logger.error("Parent ID missing during registration");
       throw ApiError.internal("Parent id is missing");
     }
 
@@ -27,12 +30,17 @@ class AuthController {
     });
 
     if (!user || !accessToken) {
+      logger.error("User creation failed during registration");
       throw ApiError.internal("User creation failed!");
     }
 
     // await AuthServices.createAndSendEmailVerification(user);
 
     const safeUser = Helper.serializeUser(user);
+
+    logger.info("User registration completed successfully", {
+      userId: user.id,
+    });
 
     return res
       .status(201)
@@ -47,10 +55,13 @@ class AuthController {
 
   static login = asyncHandler(async (req: Request, res: Response) => {
     const { user, accessToken, refreshToken } = await AuthServices.login(
-      req.body
+      req.body,
+      req
     );
 
     const safeUser = Helper.serializeUser(user);
+
+    logger.info("User login completed", { userId: user.id });
 
     return res
       .status(200)
@@ -58,8 +69,8 @@ class AuthController {
       .cookie("refreshToken", refreshToken, cookieOptions)
       .json(
         ApiResponse.success(
-          { accessToken },
-          `${safeUser.email} Login successful`,
+          { user: safeUser, accessToken },
+          `${safeUser.email} login successful`,
           200
         )
       );
@@ -67,15 +78,15 @@ class AuthController {
 
   static logout = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.id;
+    const refreshToken = req.cookies?.refreshToken;
 
-    if (!userId) {
-      throw ApiError.unauthorized("User not authenticated");
-    }
+    if (!userId) throw ApiError.unauthorized("User not authenticated");
 
-    await AuthServices.logout(userId);
+    await AuthServices.logout(userId, refreshToken);
 
     res.clearCookie("accessToken", cookieOptions);
     res.clearCookie("refreshToken", cookieOptions);
+
     return res
       .status(200)
       .json(ApiResponse.success(null, "Logout successful", 200));
@@ -85,6 +96,7 @@ class AuthController {
     const incomingRefresh = req.cookies?.refreshToken;
 
     if (!incomingRefresh) {
+      logger.warn("Refresh token missing in request");
       throw ApiError.unauthorized("Refresh token missing");
     }
 
@@ -98,6 +110,8 @@ class AuthController {
     res.cookie("accessToken", accessToken, cookieOptions);
 
     const safeUser = Helper.serializeUser(user);
+
+    logger.info("Token refresh completed", { userId: user.id });
 
     return res
       .status(200)
@@ -114,10 +128,13 @@ class AuthController {
     const { email } = req.body;
 
     if (!email) {
+      logger.warn("Forgot password attempted without email");
       throw ApiError.badRequest("Email is required");
     }
 
     const result = await AuthServices.forgotPassword(email);
+
+    logger.info("Forgot password request processed", { email });
 
     return res.status(200).json(ApiResponse.success(null, result.message, 200));
   });
@@ -126,10 +143,13 @@ class AuthController {
     const { token, newPassword } = req.body;
 
     if (!token || !newPassword) {
+      logger.warn("Reset password attempted with missing fields");
       throw ApiError.badRequest("token and newPassword required");
     }
 
     const result = await AuthServices.resetPassword(token, newPassword);
+
+    logger.info("Password reset completed successfully");
 
     return res.status(200).json(ApiResponse.success(null, result.message, 200));
   });
@@ -137,9 +157,14 @@ class AuthController {
   static getUserById = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.params.id ?? req.user?.id;
 
-    if (!userId) throw ApiError.badRequest("userId required");
+    if (!userId) {
+      logger.warn("Get user attempted without user ID");
+      throw ApiError.badRequest("userId required");
+    }
 
     const user = await AuthServices.getUserById(userId);
+
+    logger.debug("User data fetched", { userId });
 
     return res
       .status(200)
@@ -147,11 +172,16 @@ class AuthController {
   });
 
   static verifyEmail = asyncHandler(async (req: Request, res: Response) => {
-    const { token } = req.query; // token may come as query param from link
+    const { token } = req.query;
 
-    if (!token) throw ApiError.badRequest("token required");
+    if (!token) {
+      logger.warn("Email verification attempted without token");
+      throw ApiError.badRequest("token required");
+    }
 
     const result = await AuthServices.verifyEmail(String(token));
+
+    logger.info("Email verification completed");
 
     return res.status(200).json(ApiResponse.success(null, result.message, 200));
   });

@@ -1,92 +1,105 @@
-import TransportStream from "winston-transport";
-import type { TransportStreamOptions } from "winston-transport";
-import {
-  CloudWatchLogsClient,
-  CreateLogGroupCommand,
-  CreateLogStreamCommand,
-  PutLogEventsCommand,
-  DescribeLogStreamsCommand,
-} from "@aws-sdk/client-cloudwatch-logs";
+// utils/CloudWatchTransport.ts
+import Transport from "winston-transport";
+import { CloudWatchLogs } from "@aws-sdk/client-cloudwatch-logs";
 
-interface CloudWatchTransportOptions extends TransportStreamOptions {
+interface CloudWatchTransportOptions extends Transport.TransportStreamOptions {
   logGroupName: string;
   logStreamName: string;
   region?: string;
 }
 
-export default class CloudWatchTransport extends TransportStream {
-  private cloudwatch: CloudWatchLogsClient;
+class CloudWatchTransport extends Transport {
+  private cloudWatchLogs: CloudWatchLogs;
   private logGroupName: string;
   private logStreamName: string;
   private sequenceToken: string | undefined;
-  private initialized = false;
 
-  constructor(options: CloudWatchTransportOptions) {
-    super(options);
-    this.logGroupName = options.logGroupName;
-    this.logStreamName = options.logStreamName;
-    this.cloudwatch = new CloudWatchLogsClient({
-      region: options.region || "ap-south-1",
+  constructor(opts: CloudWatchTransportOptions) {
+    super(opts);
+
+    this.cloudWatchLogs = new CloudWatchLogs({
+      region: opts.region || "ap-south-1",
     });
+
+    this.logGroupName = opts.logGroupName;
+    this.logStreamName = opts.logStreamName;
+
+    this.initializeStream();
+  }
+
+  private async initializeStream() {
+    try {
+      // Check if log group exists
+      try {
+        await this.cloudWatchLogs.describeLogGroups({
+          logGroupNamePrefix: this.logGroupName,
+        });
+      } catch (error) {
+        // Create log group if it doesn't exist
+        await this.cloudWatchLogs.createLogGroup({
+          logGroupName: this.logGroupName,
+        });
+      }
+
+      // Check if log stream exists
+      try {
+        const describeResponse = await this.cloudWatchLogs.describeLogStreams({
+          logGroupName: this.logGroupName,
+          logStreamNamePrefix: this.logStreamName,
+        });
+
+        const stream = describeResponse.logStreams?.find(
+          (s) => s.logStreamName === this.logStreamName
+        );
+
+        this.sequenceToken = stream?.uploadSequenceToken;
+      } catch (error) {
+        // Create log stream if it doesn't exist
+        await this.cloudWatchLogs.createLogStream({
+          logGroupName: this.logGroupName,
+          logStreamName: this.logStreamName,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to initialize CloudWatch stream:", error);
+    }
   }
 
   async log(info: any, callback: () => void) {
-    setImmediate(() => this.emit("logged", info));
+    setImmediate(() => {
+      this.emit("logged", info);
+    });
 
     try {
-      if (!this.initialized) {
-        await this.setupCloudWatch();
-      }
-
       const logEvent = {
-        message:
-          typeof info.message === "object"
-            ? JSON.stringify(info.message)
-            : info.stack || info.message,
+        message: JSON.stringify({
+          level: info.level,
+          message: info.message,
+          timestamp: info.timestamp,
+          ...info.metadata,
+        }),
         timestamp: Date.now(),
       };
 
-      const putCommand = new PutLogEventsCommand({
+      const putLogEventsParams: any = {
         logGroupName: this.logGroupName,
         logStreamName: this.logStreamName,
         logEvents: [logEvent],
-        sequenceToken: this.sequenceToken,
-      });
+      };
 
-      const result = await this.cloudwatch.send(putCommand);
-      this.sequenceToken = result.nextSequenceToken;
+      if (this.sequenceToken) {
+        putLogEventsParams.sequenceToken = this.sequenceToken;
+      }
+
+      const response =
+        await this.cloudWatchLogs.putLogEvents(putLogEventsParams);
+      this.sequenceToken = response.nextSequenceToken;
     } catch (error) {
-      console.error("❌ CloudWatch logging error:", error);
+      console.error("CloudWatch log error:", error);
     }
 
     callback();
   }
-
-  private async setupCloudWatch() {
-    try {
-      await this.cloudwatch.send(
-        new CreateLogGroupCommand({ logGroupName: this.logGroupName })
-      );
-    } catch (_) {}
-
-    try {
-      await this.cloudwatch.send(
-        new CreateLogStreamCommand({
-          logGroupName: this.logGroupName,
-          logStreamName: this.logStreamName,
-        })
-      );
-    } catch (_) {}
-
-    const describeStreams = await this.cloudwatch.send(
-      new DescribeLogStreamsCommand({
-        logGroupName: this.logGroupName,
-        logStreamNamePrefix: this.logStreamName,
-      })
-    );
-
-    const stream = describeStreams.logStreams?.[0];
-    this.sequenceToken = stream?.uploadSequenceToken;
-    this.initialized = true;
-  }
 }
+
+export default CloudWatchTransport;

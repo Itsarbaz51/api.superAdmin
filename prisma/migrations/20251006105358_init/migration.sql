@@ -37,6 +37,10 @@ CREATE TABLE `users` (
     `deleted_at` DATETIME(3) NULL,
     `role_id` VARCHAR(191) NOT NULL,
     `refresh_token` VARCHAR(191) NULL,
+    `password_reset_token` VARCHAR(191) NULL,
+    `password_reset_expires` DATETIME(3) NULL,
+    `email_verification_token` VARCHAR(191) NULL,
+    `email_verified_at` DATETIME(3) NULL,
 
     UNIQUE INDEX `users_email_key`(`email`),
     UNIQUE INDEX `users_phone_number_key`(`phone_number`),
