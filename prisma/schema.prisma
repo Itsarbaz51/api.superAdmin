@@ -152,17 +152,18 @@ model User {
   wallets         Wallet[]
   piiConsents     PiiConsent[]
 
-  commissionTargets  CommissionSetting[] @relation("CommissionTargetUser")
-  commissionCreated  CommissionSetting[] @relation("CommissionSettingCreatedBy")
-  commissionEarnings CommissionEarning[] @relation("CommissionEarningToUser")
-  commissionsGiven   CommissionEarning[] @relation("CommissionEarningFromUser")
-  UserKyc            UserKyc[]
-  BusinessKyc        BusinessKyc?
-  SystemSetting      SystemSetting[]
-  LoginLogs          LoginLogs[]
-  Transaction        Transaction[]
-  apiKeys            ApiKey[]
-  auditLogs          AuditLog[]
+  commissionTargets           CommissionSetting[] @relation("CommissionTargetUser")
+  commissionCreated           CommissionSetting[] @relation("CommissionSettingCreatedBy")
+  commissionEarnings          CommissionEarning[] @relation("CommissionEarningToUser")
+  commissionsGiven            CommissionEarning[] @relation("CommissionEarningFromUser")
+  commissionEarningsCreatedBy CommissionEarning[] @relation("CommissionEarningCreatedBy")
+  UserKyc                     UserKyc[]
+  BusinessKyc                 BusinessKyc?
+  SystemSetting               SystemSetting[]
+  LoginLogs                   LoginLogs[]
+  Transaction                 Transaction[]
+  apiKeys                     ApiKey[]
+  auditLogs                   AuditLog[]
 
   // Indexes for performance
   @@index([parentId])
@@ -408,6 +409,9 @@ model CommissionEarning {
   commissionType   CommissionType @map("commission_type")
   level            Int
 
+  createdBy     String @map("created_by")
+  createdByUser User   @relation("CommissionEarningCreatedBy", fields: [createdBy], references: [id])
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -644,8 +648,8 @@ model Transaction {
   idempotencyKey   String?          @map("idempotency_key")
   userId           String           @map("user_id")
   user             User             @relation(fields: [userId], references: [id])
-  walletId         String?          @map("wallet_id")
-  wallet           Wallet?          @relation(fields: [walletId], references: [id])
+  walletId         String           @map("wallet_id")
+  wallet           Wallet           @relation(fields: [walletId], references: [id])
   serviceId        String           @map("service_id")
   service          Service          @relation(fields: [serviceId], references: [id])
   providerId       String?          @map("provider_id")
@@ -653,11 +657,12 @@ model Transaction {
   amount           BigInt
   providerCharge   BigInt?
   commissionAmount BigInt
-  netAmount        BigInt?
+  netAmount        BigInt
   status           TxStatus         @default(PENDING)
   rateLimit        Int?
   requestPayload   Json?
   responsePayload  Json?
+  completedAt      DateTime?        @map("completed_at")
   errorCode        String?
   errorMessage     String?          @db.LongText
   createdAt        DateTime         @default(now())

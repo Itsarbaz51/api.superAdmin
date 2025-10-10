@@ -41,6 +41,7 @@ CREATE TABLE `users` (
     `password_reset_expires` DATETIME(3) NULL,
     `email_verification_token` VARCHAR(191) NULL,
     `email_verified_at` DATETIME(3) NULL,
+    `email_verification_token_expires` DATETIME(3) NULL,
 
     UNIQUE INDEX `users_email_key`(`email`),
     UNIQUE INDEX `users_phone_number_key`(`phone_number`),
@@ -224,6 +225,7 @@ CREATE TABLE `commission_earnings` (
     `commission_amount` BIGINT NOT NULL,
     `commission_type` ENUM('FLAT', 'PERCENT') NOT NULL,
     `level` INTEGER NOT NULL,
+    `created_by` VARCHAR(191) NOT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
@@ -482,16 +484,13 @@ CREATE TABLE `refunds` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `audit_logs` (
+CREATE TABLE `AuditLog` (
     `id` VARCHAR(191) NOT NULL,
-    `entity` VARCHAR(191) NOT NULL,
-    `entity_id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NULL,
     `action` VARCHAR(191) NOT NULL,
-    `actor_id` VARCHAR(191) NULL,
-    `payload` JSON NULL,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `metadata` JSON NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    INDEX `audit_logs_entity_entity_id_idx`(`entity`, `entity_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -571,6 +570,9 @@ ALTER TABLE `commission_earnings` ADD CONSTRAINT `commission_earnings_from_user_
 ALTER TABLE `commission_earnings` ADD CONSTRAINT `commission_earnings_service_id_fkey` FOREIGN KEY (`service_id`) REFERENCES `services`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `commission_earnings` ADD CONSTRAINT `commission_earnings_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `api_keys` ADD CONSTRAINT `api_keys_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -629,6 +631,9 @@ ALTER TABLE `ledger_entries` ADD CONSTRAINT `ledger_entries_wallet_id_fkey` FORE
 
 -- AddForeignKey
 ALTER TABLE `refunds` ADD CONSTRAINT `refunds_transaction_id_fkey` FOREIGN KEY (`transaction_id`) REFERENCES `transactions`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `AuditLog` ADD CONSTRAINT `AuditLog_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `pii_consents` ADD CONSTRAINT `pii_consents_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
