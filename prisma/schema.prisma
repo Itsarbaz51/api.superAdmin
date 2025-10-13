@@ -34,7 +34,7 @@ enum AccountType {
 
 enum CommissionType {
   FLAT
-  PERCENT
+  PERCENTAGE
 }
 
 enum TxStatus {
@@ -71,6 +71,23 @@ enum KycStatus {
   PENDING
   VERIFIED
   REJECT
+}
+
+enum Currency {
+  INR
+  USD
+  EUR
+  GBP
+  AED
+}
+
+enum ReferenceType {
+  TRANSACTION
+  COMMISSION
+  REFUND
+  ADJUSTMENT
+  BONUS
+  CHARGE
 }
 
 // ==================== ROLE MODEL ====================
@@ -331,6 +348,8 @@ model Address {
   updatedAt   DateTime      @updatedAt @map("updated_at")
   UserKyc     UserKyc[]
   BusinessKyc BusinessKyc[]
+
+  @@map("addresses")
 }
 
 // ==================== Wallet ====================
@@ -339,8 +358,8 @@ model Wallet {
   id        String    @id @default(uuid())
   userId    String    @map("user_id")
   user      User      @relation(fields: [userId], references: [id])
-  balance   BigInt    @default(0) // stored in paise
-  currency  String    @default("INR")
+  balance   BigInt    @default(0)
+  currency  Currency  @default(INR) // ✅ Changed from String → Enum
   isPrimary Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -372,11 +391,13 @@ model CommissionSetting {
   minAmount BigInt? @map("min_amount")
   maxAmount BigInt? @map("max_amount")
 
-  // tax config snapshot (audit-friendly)
+  // tax config snapshot
   applyTDS   Boolean  @default(false)
   tdsPercent Decimal? @map("tds_percent") @db.Decimal(5, 2)
   applyGST   Boolean  @default(false)
   gstPercent Decimal? @map("gst_percent") @db.Decimal(5, 2)
+
+  channel String? // e.g. "AEPS", "DMT", "BBPS"
 
   createdBy     String @map("created_by")
   createdByUser User   @relation("CommissionSettingCreatedBy", fields: [createdBy], references: [id])
@@ -388,7 +409,7 @@ model CommissionSetting {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  @@index([scope, roleId, targetUserId, serviceId])
+  @@index([scope, roleId, targetUserId, serviceId, channel])
   @@map("commission_settings")
 }
 
@@ -515,16 +536,17 @@ model ApiKeyIpWhitelist {
 
 model ProviderCredential {
   id          String          @id @default(uuid())
-  providerId  String          @map("provider_id")
+  providerId  String
   provider    ServiceProvider @relation(fields: [providerId], references: [id])
   env         Env
   keyName     String
-  keyVaultRef String // pointer to secrets manager (never store raw)
+  keyVaultRef String
   meta        String?         @db.LongText
   isActive    Boolean         @default(true)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
+  @@unique([providerId, env], name: "providerId_env")
   @@map("provider_credentials")
 }
 
@@ -543,7 +565,7 @@ model ProviderRateCard {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  @@unique([providerId, serviceId, effectiveFrom])
+  @@unique([providerId, serviceId, effectiveFrom], name: "providerId_serviceId_effectiveFrom")
   @@map("provider_ratecards")
 }
 
@@ -645,6 +667,7 @@ model LoginLogs {
 model Transaction {
   id               String           @id @default(uuid())
   referenceId      String?          @map("reference_id")
+  externalRefId    String?          @map("external_ref_id") // ✅ Added for external provider reference
   idempotencyKey   String?          @map("idempotency_key")
   userId           String           @map("user_id")
   user             User             @relation(fields: [userId], references: [id])
@@ -675,6 +698,7 @@ model Transaction {
   @@index([idempotencyKey])
   @@index([status, createdAt])
   @@index([serviceId, createdAt])
+  @@index([externalRefId])
   @@map("transactions")
 }
 
@@ -684,9 +708,10 @@ model LedgerEntry {
   transaction    Transaction?    @relation(fields: [transactionId], references: [id])
   walletId       String?         @map("wallet_id")
   wallet         Wallet?         @relation(fields: [walletId], references: [id])
-  entryType      LedgerEntryType @map("entry_type") // "DEBIT" or "CREDIT"
-  amount         BigInt // paise
-  runningBalance BigInt          @map("running_balance") // snapshot after this entry
+  entryType      LedgerEntryType @map("entry_type")
+  referenceType  ReferenceType?  @map("reference_type") // ✅ new field
+  amount         BigInt
+  runningBalance BigInt          @map("running_balance")
   narration      String          @db.Text
   createdAt      DateTime        @default(now()) @map("created_at")
   createdBy      String          @map("created_by")
@@ -724,13 +749,19 @@ model Refund {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  userId    String?
-  action    String
-  metadata  Json?
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  entityType String? // e.g. "User", "Transaction", "Service"
+  entityId   String? // related entity record ID
+  ipAddress  String? // request origin
+  metadata   Json?
+  createdAt  DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
 }
 
 model PiiConsent {

@@ -3,13 +3,22 @@ import { z } from "zod";
 export class TransactionValidationSchemas {
   static get createTransactionSchema() {
     return z.object({
-      userId: z.string().uuid(),
-      walletId: z.string().uuid(),
-      serviceId: z.string().uuid(),
-      providerId: z.string().uuid().optional(),
-      amount: z.number().positive(),
-      commissionAmount: z.number().nonnegative().default(0),
-      idempotencyKey: z.string().optional(),
+      userId: z.string().uuid({ message: "Valid user ID is required" }),
+      walletId: z.string().uuid({ message: "Valid wallet ID is required" }),
+      serviceId: z.string().uuid({ message: "Valid service ID is required" }),
+      providerId: z
+        .string()
+        .uuid({ message: "Valid provider ID is required" })
+        .optional(),
+      amount: z.number().positive({ message: "Amount must be positive" }),
+      commissionAmount: z
+        .number()
+        .nonnegative({ message: "Commission amount must be non-negative" })
+        .default(0),
+      idempotencyKey: z
+        .string()
+        .min(1, { message: "Idempotency key must not be empty" })
+        .optional(),
       referenceId: z.string().optional(),
       requestPayload: z.record(z.string(), z.any()).optional(),
     });
@@ -17,10 +26,12 @@ export class TransactionValidationSchemas {
 
   static get refundTransactionSchema() {
     return z.object({
-      transactionId: z.string().uuid(),
-      initiatedBy: z.string().uuid(),
-      amount: z.number().positive(),
-      reason: z.string().optional(),
+      transactionId: z
+        .string()
+        .uuid({ message: "Valid transaction ID is required" }),
+      initiatedBy: z.string().uuid({ message: "Valid user ID is required" }),
+      amount: z.number().positive({ message: "Amount must be positive" }),
+      reason: z.string().min(1, { message: "Reason is required" }).optional(),
     });
   }
 
@@ -36,8 +47,12 @@ export class TransactionValidationSchemas {
 
   static get updateTransactionStatusSchema() {
     return z.object({
-      transactionId: z.string().uuid(),
-      status: z.enum(["SUCCESS", "FAILED"]),
+      transactionId: z
+        .string()
+        .uuid({ message: "Valid transaction ID is required" }),
+      status: z.enum(["SUCCESS", "FAILED"], {
+        message: "Status must be either SUCCESS or FAILED",
+      }),
       responsePayload: z.record(z.string(), z.any()).optional(),
     });
   }

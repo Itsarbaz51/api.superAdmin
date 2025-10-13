@@ -1,5 +1,10 @@
 import Prisma from "../db/db.js";
-import { Prisma as prisma } from "@prisma/client";
+import {
+  Prisma as prisma,
+  TxStatus,
+  LedgerEntryType,
+  ReferenceType,
+} from "@prisma/client";
 import type {
   CreateTransactionDTO,
   GetTransactionsFilters,
@@ -7,6 +12,7 @@ import type {
   UpdateTransactionStatusDTO,
 } from "../types/transaction.types.js";
 import { ApiError } from "../utils/ApiError.js";
+import logger from "../utils/WinstonLogger.js";
 
 export class TransactionService {
   // ---------------- CREATE TRANSACTION ----------------
@@ -23,49 +29,93 @@ export class TransactionService {
       requestPayload,
     } = data;
 
-    const wallet = await Prisma.wallet.findUnique({ where: { id: walletId } });
-    if (!wallet) throw ApiError.notFound("Wallet not found");
+    // Check for duplicate idempotency key
+    if (idempotencyKey) {
+      const existingTx = await Prisma.transaction.findFirst({
+        where: { idempotencyKey },
+      });
+      if (existingTx) {
+        logger.info("Returning existing transaction for idempotency key", {
+          key: idempotencyKey,
+          transactionId: existingTx.id,
+        });
+        return existingTx;
+      }
+    }
 
-    if (wallet.balance < BigInt(amount)) {
+    const wallet = await Prisma.wallet.findUnique({
+      where: { id: walletId },
+      include: { user: true },
+    });
+
+    if (!wallet) throw ApiError.notFound("Wallet not found");
+    if (wallet.userId !== userId)
+      throw ApiError.badRequest("Wallet does not belong to user");
+
+    const amountBigInt = BigInt(amount);
+    const commissionAmountBigInt = BigInt(commissionAmount);
+
+    if (wallet.balance < amountBigInt) {
       throw ApiError.badRequest("Insufficient balance");
     }
 
     const transaction = await Prisma.$transaction(async (tx) => {
+      // Create transaction
       const newTx = await tx.transaction.create({
         data: {
           userId,
           walletId,
           serviceId,
-          providerId: providerId ?? null,
-          amount: BigInt(amount),
-          commissionAmount: BigInt(commissionAmount),
-          netAmount: BigInt(amount) - BigInt(commissionAmount),
-          referenceId: referenceId ?? null,
-          idempotencyKey: idempotencyKey ?? null,
+          providerId: providerId || null,
+          amount: amountBigInt,
+          commissionAmount: commissionAmountBigInt,
+          netAmount: amountBigInt - commissionAmountBigInt,
+          providerCharge: BigInt(0),
+          referenceId: referenceId || null,
+          idempotencyKey: idempotencyKey || null,
           requestPayload: requestPayload
             ? (requestPayload as prisma.InputJsonValue)
             : prisma.JsonNull,
-          status: "PENDING",
+          status: TxStatus.PENDING,
+        },
+        include: {
+          service: { select: { name: true, code: true } },
+          provider: { select: { name: true, code: true } },
+          user: {
+            select: { firstName: true, lastName: true, phoneNumber: true },
+          },
         },
       });
 
-      const runningBalance = wallet.balance - BigInt(amount);
+      // Calculate new balance
+      const newBalance = wallet.balance - amountBigInt;
 
+      // Create ledger entry
       await tx.ledgerEntry.create({
         data: {
           walletId,
           transactionId: newTx.id,
-          entryType: "DEBIT",
-          amount: BigInt(amount),
-          runningBalance,
-          narration: `Transaction initiated for service ${serviceId}`,
+          entryType: LedgerEntryType.DEBIT,
+          referenceType: ReferenceType.TRANSACTION,
+          amount: amountBigInt,
+          runningBalance: newBalance,
+          narration: `Transaction initiated for ${newTx.service.name}`,
           createdBy: userId,
+          idempotencyKey: idempotencyKey || null,
         },
       });
 
+      // Update wallet balance
       await tx.wallet.update({
         where: { id: walletId },
-        data: { balance: { decrement: BigInt(amount) } },
+        data: { balance: newBalance },
+      });
+
+      logger.info("Transaction created successfully", {
+        transactionId: newTx.id,
+        userId,
+        amount: Number(amountBigInt),
+        idempotencyKey,
       });
 
       return newTx;
@@ -80,57 +130,78 @@ export class TransactionService {
 
     const transaction = await Prisma.transaction.findUnique({
       where: { id: transactionId },
-      include: { wallet: true },
+      include: {
+        wallet: true,
+        service: { select: { name: true } },
+      },
     });
 
     if (!transaction) throw ApiError.notFound("Transaction not found");
-    if (transaction.status !== "SUCCESS")
+    if (transaction.status !== TxStatus.SUCCESS) {
       throw ApiError.badRequest("Only successful transactions can be refunded");
+    }
 
-    if (!transaction.walletId) throw new ApiError("Wallet not linked", 400);
+    const amountBigInt = BigInt(amount);
 
     const refund = await Prisma.$transaction(async (tx) => {
-      const latestLedger = await tx.ledgerEntry.findFirst({
-        where: { walletId: transaction.walletId },
-        orderBy: { createdAt: "desc" },
-      });
-
-      const runningBalance =
-        (latestLedger?.runningBalance ?? BigInt(0)) + BigInt(amount);
-
+      // Create refund record
       const refundRecord = await tx.refund.create({
         data: {
           transactionId,
           initiatedBy,
-          amount: BigInt(amount),
-          reason,
-          status: "SUCCESS",
+          amount: amountBigInt,
+          reason: reason || "Refund requested",
+          status: TxStatus.REFUNDED,
         },
       });
 
-      await tx.wallet.update({
-        where: { id: transaction.walletId },
-        data: { balance: { increment: BigInt(amount) } },
+      // Get latest ledger entry for running balance
+      const latestLedger = await tx.ledgerEntry.findFirst({
+        where: { walletId: transaction.walletId! },
+        orderBy: { createdAt: "desc" },
       });
 
+      const runningBalance =
+        (latestLedger?.runningBalance || transaction.wallet!.balance) +
+        amountBigInt;
+
+      // Create ledger entry for refund
       await tx.ledgerEntry.create({
         data: {
-          walletId: transaction.walletId,
+          walletId: transaction.walletId!,
           transactionId,
-          entryType: "CREDIT",
-          amount: BigInt(amount),
+          entryType: LedgerEntryType.CREDIT,
+          referenceType: ReferenceType.REFUND,
+          amount: amountBigInt,
           runningBalance,
-          narration: `Refund processed for transaction ${transactionId}`,
+          narration: `Refund for transaction ${transactionId} - ${reason || "No reason provided"}`,
           createdBy: initiatedBy,
         },
       });
 
-      await tx.transaction.update({
-        where: { id: transactionId },
-        data: { status: "REFUNDED" },
+      // Update wallet balance
+      await tx.wallet.update({
+        where: { id: transaction.walletId! },
+        data: { balance: runningBalance },
       });
 
-      return refundRecord;
+      // Update transaction status
+      await tx.transaction.update({
+        where: { id: transactionId },
+        data: { status: TxStatus.REFUNDED },
+      });
+
+      logger.info("Transaction refund processed", {
+        transactionId,
+        refundId: refundRecord.id,
+        amount: Number(amountBigInt),
+      });
+
+      return {
+        ...refundRecord,
+        transactionReference: transaction.referenceId,
+        serviceName: transaction.service.name,
+      };
     });
 
     return refund;
@@ -147,20 +218,59 @@ export class TransactionService {
 
     const skip = (page - 1) * limit;
 
-    const [transactions, total] = await Prisma.$transaction([
+    const [transactions, total] = await Promise.all([
       Prisma.transaction.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
+        include: {
+          service: { select: { name: true, code: true } },
+          provider: { select: { name: true, code: true } },
+          user: {
+            select: { firstName: true, lastName: true, phoneNumber: true },
+          },
+          wallet: { select: { id: true, currency: true } },
+        },
       }),
       Prisma.transaction.count({ where }),
     ]);
 
     return {
       data: transactions,
-      meta: { total, page, limit },
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
+  }
+
+  // ---------------- GET TRANSACTION BY ID ----------------
+  static async getTransactionById(id: string) {
+    const transaction = await Prisma.transaction.findUnique({
+      where: { id },
+      include: {
+        service: { select: { name: true, code: true } },
+        provider: { select: { name: true, code: true } },
+        user: {
+          select: { firstName: true, lastName: true, phoneNumber: true },
+        },
+        wallet: { select: { id: true, currency: true } },
+        ledgerEntries: {
+          orderBy: { createdAt: "asc" },
+          take: 10,
+        },
+        Refund: {
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        },
+      },
+    });
+
+    if (!transaction) throw ApiError.notFound("Transaction not found");
+    return transaction;
   }
 
   // ---------------- UPDATE TRANSACTION STATUS ----------------
@@ -173,57 +283,62 @@ export class TransactionService {
     });
 
     if (!transaction) throw ApiError.notFound("Transaction not found");
-    if (transaction.status !== "PENDING")
+    if (transaction.status !== TxStatus.PENDING) {
       throw ApiError.badRequest("Only pending transactions can be updated");
-
-    if (!transaction.walletId) throw ApiError.badRequest("Wallet not linked");
+    }
 
     const updatedTx = await Prisma.$transaction(async (tx) => {
       // Update transaction
       const txUpdate = await tx.transaction.update({
         where: { id: transactionId },
         data: {
-          status,
+          status: status as TxStatus,
           responsePayload: responsePayload
             ? (responsePayload as prisma.InputJsonValue)
             : prisma.JsonNull,
-          completedAt: new Date(),
+          completedAt: status === TxStatus.SUCCESS ? new Date() : null,
+        },
+        include: {
+          service: { select: { name: true } },
+          user: { select: { firstName: true, lastName: true } },
         },
       });
 
-      const latestLedger = await tx.ledgerEntry.findFirst({
-        where: { walletId: transaction.walletId! },
-        orderBy: { createdAt: "desc" },
-      });
+      // For failed transactions, refund the amount
+      if (status === TxStatus.FAILED && transaction.walletId) {
+        const latestLedger = await tx.ledgerEntry.findFirst({
+          where: { walletId: transaction.walletId },
+          orderBy: { createdAt: "desc" },
+        });
 
-      const runningBalance =
-        latestLedger?.runningBalance ?? transaction.wallet!.balance;
+        const runningBalance =
+          (latestLedger?.runningBalance || transaction.wallet!.balance) +
+          transaction.amount;
 
-      await tx.ledgerEntry.create({
-        data: {
-          walletId: transaction.walletId!,
-          transactionId,
-          entryType: status === "SUCCESS" ? "DEBIT" : "CREDIT",
-          amount: transaction.amount,
-          runningBalance:
-            status === "SUCCESS"
-              ? runningBalance
-              : runningBalance + transaction.amount,
-          narration:
-            status === "SUCCESS"
-              ? `Transaction ${transactionId} marked as SUCCESS`
-              : `Transaction ${transactionId} failed — amount reversed`,
-          createdBy: transaction.userId,
-        },
-      });
+        await tx.ledgerEntry.create({
+          data: {
+            walletId: transaction.walletId,
+            transactionId,
+            entryType: LedgerEntryType.CREDIT,
+            referenceType: ReferenceType.REFUND,
+            amount: transaction.amount,
+            runningBalance,
+            narration: `Transaction failed - amount refunded`,
+            createdBy: transaction.userId,
+          },
+        });
 
-      // Wallet update for FAILED
-      if (status === "FAILED") {
         await tx.wallet.update({
           where: { id: transaction.walletId },
-          data: { balance: { increment: transaction.amount } },
+          data: { balance: runningBalance },
         });
       }
+
+      logger.info("Transaction status updated", {
+        transactionId,
+        oldStatus: transaction.status,
+        newStatus: status,
+      });
 
       return txUpdate;
     });

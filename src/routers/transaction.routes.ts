@@ -3,37 +3,47 @@ import AuthMiddleware from "../middlewares/auth.middleware.js";
 import { validateRequest } from "../middlewares/validateRequest.js";
 import { TransactionValidationSchemas } from "../validations/transactionValidation.schemas.js";
 import { TransactionController } from "../controllers/transaction.controller.js";
+import idempotencyMiddleware from "../middlewares/idempotency.middleware.js";
 
 const transactionRoutes = Router();
 
-// ---------------- CREATE TRANSACTION ----------------
+// Create transaction with idempotency
 transactionRoutes.post(
-  "/transaction",
+  "/",
   AuthMiddleware.isAuthenticated,
+  idempotencyMiddleware({ required: true }),
   validateRequest(TransactionValidationSchemas.createTransactionSchema),
   TransactionController.createTransaction
 );
 
-// ---------------- REFUND TRANSACTION ----------------
+// Refund transaction
 transactionRoutes.post(
   "/refund",
   AuthMiddleware.isAuthenticated,
+  AuthMiddleware.authorizeRoles(["SUPER ADMIN", "ADMIN"]),
   validateRequest(TransactionValidationSchemas.refundTransactionSchema),
   TransactionController.refundTransaction
 );
 
-// ---------------- GET TRANSACTIONS ----------------
-transactionRoutes.post(
+// Get transactions (with query params)
+transactionRoutes.get(
   "/",
   AuthMiddleware.isAuthenticated,
-  validateRequest(TransactionValidationSchemas.getTransactionsSchema),
   TransactionController.getTransactions
 );
 
-// ---------------- UPDATE TRANSACTION STATUS ----------------
-transactionRoutes.patch(
-  "/transaction/status",
+// Get transaction by ID
+transactionRoutes.get(
+  "/:id",
   AuthMiddleware.isAuthenticated,
+  TransactionController.getTransactionById
+);
+
+// Update transaction status
+transactionRoutes.patch(
+  "/status",
+  AuthMiddleware.isAuthenticated,
+  AuthMiddleware.authorizeRoles(["SUPER ADMIN", "ADMIN"]),
   validateRequest(TransactionValidationSchemas.updateTransactionStatusSchema),
   TransactionController.updateTransactionStatus
 );

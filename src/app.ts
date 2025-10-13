@@ -7,6 +7,7 @@ import { requestId } from "./middlewares/requestId.middleware.js";
 import { requestLogger } from "./middlewares/requestLogger.middleware.js";
 import { rateLimiterMiddleware } from "./middlewares/rateLimiter.middleware.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { IdempotencyService } from "./services/idempotencyKey.service.js";
 
 const app = express();
 
@@ -40,5 +41,12 @@ app.get("/health", (req, res) => {
 
 StaticRoutes(app);
 app.use(errorHandler);
+
+setInterval(
+  async () => {
+    await IdempotencyService.cleanupExpiredKeys();
+  },
+  60 * 60 * 1000
+);
 
 export default app;
