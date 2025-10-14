@@ -21,7 +21,7 @@ roleRoutes.get(
 );
 
 roleRoutes.post(
-  "/",
+  "/create",
   AuthMiddleware.isAuthenticated,
   AuthMiddleware.authorizeRoles(["SUPER ADMIN"]),
   validateRequest(RoleValidationSchemas.store),
@@ -33,14 +33,6 @@ roleRoutes.put(
   AuthMiddleware.isAuthenticated,
   AuthMiddleware.authorizeRoles(["SUPER ADMIN"]),
   validateRequest(RoleValidationSchemas.update),
-  RoleController.update
-);
-
-roleRoutes.patch(
-  "/:id",
-  AuthMiddleware.isAuthenticated,
-  AuthMiddleware.authorizeRoles(["SUPER ADMIN"]),
-  validateRequest(RoleValidationSchemas.update.partial()),
   RoleController.update
 );
 
