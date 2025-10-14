@@ -28,8 +28,6 @@ class AuthController {
 
     if (req.file) {
       data.profileImage = req.file.path;
-    } else {
-      data.profileImage = "";
     }
 
     const { user, accessToken } = await AuthServices.register({

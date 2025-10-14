@@ -46,102 +46,126 @@ class AuthServices {
       parentId,
     } = payload;
 
-    // Check cache first
     const cacheKey = `user_check:${email}:${phoneNumber}:${username}:${domainName}`;
-    const cachedCheck = await getCache(cacheKey);
+    let profileImageUrl = "";
 
-    if (!cachedCheck) {
-      const existingUser = await Prisma.user.findFirst({
-        where: {
-          OR: [{ email }, { phoneNumber }, { username }, { domainName }],
+    try {
+      // Check cache first
+      const cachedCheck = await getCache(cacheKey);
+
+      if (!cachedCheck) {
+        const existingUser = await Prisma.user.findFirst({
+          where: {
+            OR: [{ email }, { phoneNumber }, { username }, { domainName }],
+          },
+        });
+
+        if (existingUser) {
+          await setCache(cacheKey, "exists", 60);
+          throw ApiError.badRequest("User already exists");
+        }
+
+        await setCache(cacheKey, "not_exists", 60);
+      } else if (cachedCheck === "exists") {
+        throw ApiError.badRequest("User already exists");
+      }
+
+      // Validate role
+      const role = await Prisma.role.findUnique({ where: { id: roleId } });
+      if (!role) throw ApiError.badRequest("Invalid roleId");
+
+      const hashedPassword = await Helper.hashPassword(password);
+      const hashedPin = await Helper.hashPassword(transactionPin);
+
+      // Parent hierarchy setup
+      let hierarchyLevel = 0;
+      let hierarchyPath = "";
+
+      if (parentId) {
+        const parent = await Prisma.user.findUnique({
+          where: { id: parentId },
+        });
+        if (!parent) throw ApiError.badRequest("Invalid parentId");
+        hierarchyLevel = parent.hierarchyLevel + 1;
+        hierarchyPath = parent.hierarchyPath
+          ? `${parent.hierarchyPath}/${parentId}`
+          : `${parentId}`;
+      }
+
+      // Upload profile image if present
+      if (profileImage) {
+        try {
+          profileImageUrl =
+            (await S3Service.upload(profileImage, "profile")) ?? "";
+        } catch (uploadErr) {
+          console.warn("Profile image upload failed:", uploadErr);
+          // Optionally continue without throwing, or throw if image is required
+        }
+      }
+
+      // Create user
+      const user = await Prisma.user.create({
+        data: {
+          username,
+          firstName,
+          lastName,
+          profileImage: profileImageUrl,
+          email,
+          phoneNumber,
+          domainName,
+          roleId,
+          password: hashedPassword,
+          transactionPin: hashedPin,
+          isAuthorized: false,
+          isKycVerified: false,
+          status: "ACTIVE",
+          hierarchyLevel,
+          hierarchyPath,
+          parentId,
+          refreshToken: null,
+        },
+        include: {
+          role: { select: { id: true, name: true, level: true } },
+          wallets: true,
+          parent: { select: { id: true, username: true } },
+          children: { select: { id: true, username: true } },
         },
       });
 
-      if (existingUser) {
-        await setCache(cacheKey, "exists", 60);
-        throw ApiError.badRequest("User already exists");
-      }
-      await setCache(cacheKey, "not_exists", 60);
-    } else if (cachedCheck === "exists") {
-      throw ApiError.badRequest("User already exists");
+      // Create primary wallet
+      await Prisma.wallet.create({
+        data: {
+          userId: user.id,
+          balance: BigInt(0),
+          currency: "INR",
+          isPrimary: true,
+        },
+      });
+
+      const accessToken = Helper.generateAccessToken({
+        id: user.id,
+        email: user.email,
+        role: user.role.name,
+      });
+
+      // Cache user
+      await cacheUser(user.id, Helper.serializeUser(user), this.USER_CACHE_TTL);
+      await clearPattern("user_check:*");
+
+      // Audit log
+      await Prisma.auditLog.create({
+        data: { userId: user.id, action: "REGISTER", metadata: {} },
+      });
+
+      return { user, accessToken };
+    } catch (err: any) {
+      console.error("Registration error:", err);
+      if (err instanceof ApiError) throw err;
+
+      throw ApiError.internal("Failed to register user. Please try again.");
+    } finally {
+      Helper.deleteOldImage(profileImage);
     }
-
-    const role = await Prisma.role.findUnique({ where: { id: roleId } });
-    if (!role) throw ApiError.badRequest("Invalid roleId");
-
-    const hashedPassword = await Helper.hashPassword(password);
-    const hashedPin = await Helper.hashPassword(transactionPin);
-
-    let hierarchyLevel = 0;
-    let hierarchyPath = "";
-    if (parentId) {
-      const parent = await Prisma.user.findUnique({ where: { id: parentId } });
-      if (!parent) throw ApiError.badRequest("Invalid parentId");
-      hierarchyLevel = parent.hierarchyLevel + 1;
-      hierarchyPath = parent.hierarchyPath
-        ? `${parent.hierarchyPath}/${parentId}`
-        : `${parentId}`;
-    }
-
-    let profileImageUrl = "";
-
-    if (profileImage) {
-      profileImageUrl = (await S3Service.upload(profileImage, "profile")) ?? "";
-    }
-
-    Helper.deleteOldImage(profileImage);
-
-    const user = await Prisma.user.create({
-      data: {
-        username,
-        firstName,
-        lastName,
-        profileImage: profileImageUrl,
-        email,
-        phoneNumber,
-        domainName,
-        roleId,
-        password: hashedPassword,
-        transactionPin: hashedPin,
-        isAuthorized: false,
-        isKycVerified: false,
-        status: "ACTIVE",
-        hierarchyLevel,
-        hierarchyPath,
-        parentId,
-        refreshToken: null,
-      },
-      include: {
-        role: { select: { id: true, name: true, level: true } },
-        wallets: true,
-        parent: { select: { id: true, username: true } },
-        children: { select: { id: true, username: true } },
-      },
-    });
-
-    await Prisma.wallet.create({
-      data: {
-        userId: user.id,
-        balance: BigInt(0),
-        currency: "INR",
-        isPrimary: true,
-      },
-    });
-
-    const accessToken = Helper.generateAccessToken({
-      id: user.id,
-      email: user.email,
-      role: user.role.name,
-    });
-
-    await cacheUser(user.id, Helper.serializeUser(user), this.USER_CACHE_TTL);
-    await clearPattern("user_check:*"); // invalidate user check cache
-
-    await Prisma.auditLog.create({
-      data: { userId: user.id, action: "REGISTER", metadata: {} },
-    });
-
-    return { user, accessToken };
   }
 
   // ===================== LOGIN =====================

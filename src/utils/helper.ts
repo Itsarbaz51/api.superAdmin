@@ -9,6 +9,7 @@ import axios from "axios";
 import type { Request } from "express";
 import crypto from "crypto";
 import fs from "fs";
+import logger from "./WinstonLogger.js";
 
 class Helper {
   static async hashPassword(password: string): Promise<string> {
@@ -129,12 +130,12 @@ class Helper {
     if (fs.existsSync(oldImagePath)) {
       try {
         fs.unlinkSync(oldImagePath);
-        console.log("Local image deleted successfully::", oldImagePath);
+        logger.info("Local image deleted successfully::", oldImagePath);
       } catch (err: any) {
-        console.error("Error deleting local image:", err.message);
+        logger.error("Error deleting local image:", err.message);
       }
     } else {
-      console.log("No local image to delete at:", oldImagePath);
+      logger.info("No local image to delete at:", oldImagePath);
     }
   }
 }
