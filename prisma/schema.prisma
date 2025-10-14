@@ -193,7 +193,6 @@ model User {
 model UserKyc {
   id         String    @id @default(uuid())
   userId     String    @map("user_id")
-  photo      String
   user       User      @relation(fields: [userId], references: [id])
   firstName  String    @map("first_name")
   lastName   String    @map("last_name")
@@ -205,24 +204,21 @@ model UserKyc {
   addressId String  @map("address_id")
   address   Address @relation(fields: [addressId], references: [id])
 
-  panNumber String @unique @map("pan_number") @db.VarChar(10)
-  panFile   String @map("pan_file")
-
-  aadhaarNumber String @unique @map("aadhaar_number") @db.VarChar(12)
-  // store hash or masked only; avoid raw aadhaar storage
-  aadhaarFile   String @map("aadhaar_file")
-
+  panFile          String @map("pan_file")
+  aadhaarFile      String @map("aadhaar_file")
   addressProofFile String @map("address_proof_file")
+  photo            String
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
-
-  businessKycId String      @map("business_kyc_id")
+  businessKycId String      @map("businessKyc_id")
   businessKyc   BusinessKyc @relation(fields: [businessKycId], references: [id])
 
+  piiConsents PiiConsent[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  @@map("user_kycs")
+  @@map("user_kyc")
 }
 
 // ==================== BUSINESS KYC ====================
@@ -238,11 +234,11 @@ model BusinessKyc {
   addressId String  @map("address_id")
   address   Address @relation(fields: [addressId], references: [id])
 
-  panNumber String @unique @map("pan_number") @db.VarChar(10)
-  panFile   String @map("pan_file")
+  // panNumber String @unique @map("pan_number") @db.VarChar(10)
+  panFile String @map("pan_file")
 
-  gstNumber String @unique @map("gst_number") @db.VarChar(15)
-  gstFile   String @map("gst_file")
+  // gstNumber String @unique @map("gst_number") @db.VarChar(15)
+  gstFile String @map("gst_file")
 
   // --------- Proprietorship Specific ---------
   udhyamAadhar String? @map("udhyam_aadhar")
@@ -258,6 +254,8 @@ model BusinessKyc {
   aoaFile              String? @map("aoa_file")
   directorKycNumbers   Int?    @default(2) @map("director_kyc_numbers")
   directorShareholding String? @map("director_shareholding_file")
+
+  piiConsents PiiConsent[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
@@ -765,16 +763,23 @@ model AuditLog {
 }
 
 model PiiConsent {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  user       User     @relation(fields: [userId], references: [id])
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  userKycId String?  @map("user_kyc_id")
+  userKyc   UserKyc? @relation(fields: [userKycId], references: [id])
+
+  businessKycId String?      @map("business_kyc_id")
+  businessKyc   BusinessKyc? @relation(fields: [businessKycId], references: [id])
+
   piiType    String
   piiHash    String
   providedAt DateTime @default(now())
-  expiresAt  DateTime // required for compliance
+  expiresAt  DateTime
   scope      String
   createdAt  DateTime @default(now())
 
-  @@index([userId])
+  @@unique([userId, piiType, scope])
   @@map("pii_consents")
 }
