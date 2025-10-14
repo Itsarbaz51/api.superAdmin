@@ -7,6 +7,7 @@ import { requestId } from "./middlewares/requestId.middleware.js";
 import { requestLogger } from "./middlewares/requestLogger.middleware.js";
 import { rateLimiterMiddleware } from "./middlewares/rateLimiter.middleware.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { auditLogger } from "./middlewares/auditLogger.js";
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use(requestId);
 app.use(requestLogger);
 app.use(rateLimiterMiddleware);
 app.set("trust proxy", true);
+app.use(auditLogger);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok", requestId: req.requestId });
