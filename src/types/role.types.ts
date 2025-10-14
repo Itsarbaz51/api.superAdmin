@@ -3,6 +3,11 @@ export interface RoleCreatePayload {
   description?: string | null;
 }
 
+export interface RoleUpdatePayload {
+  name: string;
+  description?: string | null;
+}
+
 export interface RoleDTO {
   id: string;
   name: string;
@@ -11,4 +16,14 @@ export interface RoleDTO {
   description: string | null;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface RoleListResponse {
+  roles: RoleDTO[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }

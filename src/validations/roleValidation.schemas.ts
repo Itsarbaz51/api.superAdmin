@@ -15,6 +15,10 @@ class RoleValidationSchemas {
       description: z.string().trim().max(2000).nullable().optional(),
     });
   }
+
+  static get update() {
+    return this.store; // Same validation as store for update
+  }
 }
 
 export default RoleValidationSchemas;
