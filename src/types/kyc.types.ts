@@ -12,7 +12,7 @@ export interface UserKycUploadInput {
   lastName: string;
   fatherName: string;
   gender: Gender;
-  dob: Date;
+  dob: Date | string;
   addressId: string;
   panNumber: string;
   aadhaarNumber: string;
@@ -22,24 +22,6 @@ export interface UserKycUploadInput {
   panFile: Express.Multer.File;
   aadhaarFile: Express.Multer.File;
   addressProofFile: Express.Multer.File;
-}
-
-export interface UserKycInput {
-  userId: string;
-  firstName: string;
-  lastName: string;
-  fatherName: string;
-  gender: Gender;
-  dob: Date | string;
-  addressId: string;
-  panNumber: string;
-  aadhaarNumber: string;
-  businessKycId: string;
-
-  photo: string;
-  panFile: string;
-  aadhaarFile: string;
-  addressProofFile: string;
 }
 
 export interface UserKyc {
@@ -53,22 +35,45 @@ export interface UserKyc {
   photo: string;
   addressId: string;
   address?: Address;
-  panNumber: string;
   panFile: string;
-  aadhaarNumber: string;
   aadhaarFile: string;
   addressProofFile: string;
   businessKycId: string;
+  // piiConsents?: PiiConsent[];
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date | null;
 }
 
-
 export enum BusinessType {
   PROPRIETORSHIP = "PROPRIETORSHIP",
   PARTNERSHIP = "PARTNERSHIP",
-  PRIVATE_LIMITED = "PRIVATE_LIMITED"
+  PRIVATE_LIMITED = "PRIVATE_LIMITED",
+}
+
+export interface BusinessKycUploadInput {
+  userId: string;
+  businessName: string;
+  businessType: BusinessType;
+  addressId: string;
+  panNumber: string;
+  gstNumber: string;
+
+  panFile: Express.Multer.File;
+  gstFile: Express.Multer.File;
+
+  // Optional files
+  brDoc?: Express.Multer.File;
+  partnershipDeed?: Express.Multer.File;
+  moaFile?: Express.Multer.File;
+  aoaFile?: Express.Multer.File;
+  directorShareholding?: Express.Multer.File;
+
+  // Optional fields
+  udhyamAadhar?: string;
+  partnerKycNumbers?: number;
+  cin?: string;
+  directorKycNumbers?: number;
 }
 
 export interface BusinessKyc {
@@ -77,67 +82,51 @@ export interface BusinessKyc {
   businessName: string;
   businessType: BusinessType;
   addressId: string;
-  panNumber: string;
+  address?: Address;
+  // panNumber: string; // You manually append this in return
+  // gstNumber: string; // You manually append this in return
   panFile: string;
-  gstNumber: string;
   gstFile: string;
 
-  // Optional fields (nullable in DB)
-  udhyamAadhar?: string | null;
+  // Optional file URLs
   brDoc?: string | null;
   partnershipDeed?: string | null;
-  partnerKycNumbers?: number | null;
-  cin?: string | null;
   moaFile?: string | null;
   aoaFile?: string | null;
-  directorKycNumbers?: number | null;
   directorShareholding?: string | null;
+
+  // Optional fields
+  udhyamAadhar?: string | null;
+  partnerKycNumbers?: number | null;
+  cin?: string | null;
+  directorKycNumbers?: number | null;
 
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
+}
+export interface PiiConsentInput {
+  userId: string;
+  userKycId?: string | null; // Optional, since it's nullable in Prisma
+  businessKycId?: string | null; // Optional, since it's nullable in Prisma
+  piiType: string;
+  piiHash: string;
+  providedAt: Date;
+  expiresAt: Date;
+  scope: string;
 }
 
-export interface BusinessKycInput {
-  userId: string;
-  businessName: string;
-  businessType: BusinessType;
-  addressId: string;
-  panNumber: string;
-  panFile: string;
-  gstNumber: string;
-  gstFile: string;
+import { KycStatus as PrismaKycStatus } from "@prisma/client";
 
-  // Optional fields should be nullable
-  udhyamAadhar?: string | null;
-  brDoc?: string | null;
-  partnershipDeed?: string | null;
-  partnerKycNumbers?: number | null;
-  cin?: string | null;
-  moaFile?: string | null;
-  aoaFile?: string | null;
-  directorKycNumbers?: number | null;
-  directorShareholding?: string | null;
+export interface KycVerificationInput {
+  id: string;
+  status: PrismaKycStatus;
 }
 
-
-export interface BusinessKycUploadInput {
+export interface FilterParams {
   userId: string;
-  businessName: string;
-  businessType: BusinessType;
-  addressId: string;
-  panNumber: string;
-  panFile: Express.Multer.File;
-  gstNumber: string;
-  gstFile: Express.Multer.File;
-
-  // Optional
-  udhyamAadhar?: string;
-  brDoc?: Express.Multer.File;
-  partnershipDeed?: Express.Multer.File;
-  partnerKycNumbers?: number;
-  cin?: string;
-  moaFile?: Express.Multer.File;
-  aoaFile?: Express.Multer.File;
-  directorKycNumbers?: number;
-  directorShareholding?: Express.Multer.File;
+  status?: string;
+  page: number;
+  limit: number;
+  sort: "asc" | "desc";
 }
