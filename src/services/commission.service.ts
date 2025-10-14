@@ -219,7 +219,7 @@ export class CommissionEarningService {
       orderBy: { createdAt: "desc" },
     });
 
-     const safeResult = Helper.serializeUser(earnings);
+    const safeResult = Helper.serializeUser(earnings);
     return safeResult;
   }
 }

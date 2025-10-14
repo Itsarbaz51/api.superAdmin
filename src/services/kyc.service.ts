@@ -78,6 +78,7 @@ class KycServices {
       },
     };
   }
+
   static async showUserKyc(userId: string, id: string): Promise<UserKyc> {
     const userExsits = await Prisma.user.findFirst({
       where: { id: userId },
@@ -103,6 +104,7 @@ class KycServices {
       gender: kyc.gender as Gender,
     };
   }
+
   static async storeUserKyc(payload: UserKycUploadInput): Promise<UserKyc> {
     // Check user existence
     const userExists = await Prisma.user.findUnique({
@@ -208,6 +210,7 @@ class KycServices {
       gender: createdKyc.gender as Gender,
     };
   }
+
   static async updateUserKyc(
     id: string,
     payload: Partial<UserKycUploadInput>
@@ -268,6 +271,7 @@ class KycServices {
       gender: updatedKyc.gender as Gender,
     };
   }
+
   static async verifyUserKyc(
     payload: KycVerificationInput
   ): Promise<BusinessKyc> {
@@ -367,6 +371,7 @@ class KycServices {
       },
     };
   }
+
   static async showBusinessKyc(
     userId: string,
     id: string
@@ -395,6 +400,7 @@ class KycServices {
       businessType: kyc.businessType as BusinessType,
     };
   }
+
   static async storeBusinessKyc(
     payload: BusinessKycUploadInput
   ): Promise<BusinessKyc> {
@@ -520,6 +526,7 @@ class KycServices {
       gstNumber: payload.gstNumber,
     } as BusinessKyc;
   }
+
   static async updateBusinessKyc(
     payload: BusinessKycUploadInput & { businessKycId: string }
   ): Promise<BusinessKyc> {
@@ -679,6 +686,7 @@ class KycServices {
       businessType: updatedKyc.businessType as BusinessType,
     };
   }
+
   static async verifyBusinessKyc(
     payload: KycVerificationInput
   ): Promise<BusinessKyc> {

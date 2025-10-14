@@ -25,6 +25,7 @@ class SystemSettingController {
       .status(201)
       .json(ApiResponse.success(setting, "System setting created", 201));
   });
+
   static update = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     if (!id) throw ApiError.badRequest("System setting ID is required");

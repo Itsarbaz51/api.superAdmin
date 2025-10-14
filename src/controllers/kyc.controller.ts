@@ -3,11 +3,7 @@ import asyncHandler from "../utils/AsyncHandler.js";
 import KycServices from "../services/kyc.service.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
-import type {
-  BusinessKycUploadInput,
-  FilterParams,
-  UserKycUploadInput,
-} from "../types/kyc.types.js";
+import type { BusinessKycUploadInput } from "../types/kyc.types.js";
 
 class UserKycController {
   static index = asyncHandler(async (req: Request, res: Response) => {
@@ -32,6 +28,7 @@ class UserKycController {
         ApiResponse.success(allKyc, "User KYC list fetched successfully", 200)
       );
   });
+
   static show = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.id;
     if (!userId) throw ApiError.internal("User ID not found in request");
@@ -47,6 +44,7 @@ class UserKycController {
       .status(200)
       .json(ApiResponse.success(kycData, "User KYC fetched successfully", 201));
   });
+
   static store = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.id;
     if (!userId) throw ApiError.internal("User ID not found in request");
@@ -88,6 +86,7 @@ class UserKycController {
         )
       );
   });
+
   static update = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.id;
     if (!userId) throw ApiError.internal("User ID not found in request");
@@ -126,6 +125,7 @@ class UserKycController {
         ApiResponse.success(dbUpdateData, "User KYC updated successfully", 200)
       );
   });
+
   static verification = asyncHandler(async (req: Request, res: Response) => {
     const dbStoreData = await KycServices.verifyUserKyc(req.body);
 
@@ -164,6 +164,7 @@ class BusinessKycController {
         )
       );
   });
+
   static show = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.id;
     if (!userId) throw ApiError.internal("User ID not found in request");
@@ -181,6 +182,7 @@ class BusinessKycController {
         ApiResponse.success(kycData, "Business KYC fetched successfully", 201)
       );
   });
+
   static store = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.id;
     if (!userId) throw ApiError.internal("User ID not found in request");
@@ -221,6 +223,7 @@ class BusinessKycController {
         )
       );
   });
+
   static update = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.id;
     if (!userId) throw ApiError.internal("User ID not found in request");

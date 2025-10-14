@@ -20,6 +20,7 @@ class AddressServices {
     }
     return address;
   }
+
   static async storeUserAddress(payload: AddressInput): Promise<Address> {
     const createdAddress = await Prisma.address.create({
       data: {
@@ -36,6 +37,7 @@ class AddressServices {
     }
     return createdAddress;
   }
+
   static async updateUserAddress(
     payload: AddressInput,
     id: string
@@ -56,6 +58,7 @@ class AddressServices {
     }
     return updatedAddress;
   }
+
   static async deleteUserAddress(id: string): Promise<Address> {
     const deletedAddress = await Prisma.address.delete({
       where: { id },
@@ -77,6 +80,7 @@ class AddressServices {
 
     return allStates;
   }
+
   static async storeState(payload: StateInput): Promise<State> {
     const alreadyExists = await Prisma.state.findFirst({
       where: { stateName: payload.stateName },
@@ -102,6 +106,7 @@ class AddressServices {
 
     return createdState;
   }
+
   static async updateState(payload: StateInput, id: string): Promise<State> {
     const alreadyExists = await Prisma.state.findFirst({
       where: { stateName: payload.stateName },
@@ -127,6 +132,7 @@ class AddressServices {
     }
     return updatedState;
   }
+
   static async deleteState(id: string): Promise<State> {
     const deletedState = await Prisma.state.delete({
       where: { id },
@@ -147,6 +153,7 @@ class AddressServices {
     }
     return allCities;
   }
+
   static async storeCity(payload: CityInput): Promise<City> {
     const createdCity = await Prisma.city.create({
       data: {
@@ -161,6 +168,7 @@ class AddressServices {
     }
     return createdCity;
   }
+
   static async updateCity(payload: CityInput, id: string): Promise<City> {
     const updatedCity = await Prisma.city.update({
       where: { id },
@@ -176,6 +184,7 @@ class AddressServices {
     }
     return updatedCity;
   }
+
   static async deleteCity(id: string): Promise<City> {
     const deletedCity = await Prisma.city.delete({
       where: { id },

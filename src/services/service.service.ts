@@ -243,7 +243,7 @@ export class ProviderRateCardService {
     });
 
     if (!rateCard) throw ApiError.notFound("Rate card not found");
-    
+
     return rateCard;
   }
 }
