@@ -13,7 +13,6 @@ import {
   setCache,
   delCache,
   cacheUser,
-  getCachedUser,
   invalidateUserCache,
   clearPattern,
 } from "../utils/redisCasheHelper.js";
@@ -24,6 +23,7 @@ import {
   addRevokedToken,
 } from "../utils/securityCache.js";
 import type { Request } from "express";
+import S3Service from "../utils/S3Service.js";
 
 class AuthServices {
   private static readonly USER_CACHE_TTL = 600; // 5 minutes
@@ -83,12 +83,20 @@ class AuthServices {
         : `${parentId}`;
     }
 
+    let profileImageUrl = "";
+
+    if (profileImage) {
+      profileImageUrl = (await S3Service.upload(profileImage, "profile")) ?? "";
+    }
+
+    Helper.deleteOldImage(profileImage);
+
     const user = await Prisma.user.create({
       data: {
         username,
         firstName,
         lastName,
-        profileImage,
+        profileImage: profileImageUrl,
         email,
         phoneNumber,
         domainName,
@@ -383,40 +391,6 @@ class AuthServices {
     return { message: "Password reset successful" };
   }
 
-  static async getUserById(userId: string): Promise<User | null> {
-    // Try cache first
-    const cachedUser = await getCachedUser<User>(userId);
-
-    if (cachedUser) {
-      logger.debug("User fetched from cache", { userId });
-      return cachedUser;
-    }
-
-    const user = await Prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        role: { select: { id: true, name: true, level: true } },
-        wallets: true,
-        parent: { select: { id: true, username: true } },
-        children: { select: { id: true, username: true } },
-      },
-    });
-
-    if (!user) {
-      logger.warn("User not found", { userId });
-      throw ApiError.notFound("User not found");
-    }
-
-    const safeUser = Helper.serializeUser(user);
-
-    // Cache the user
-    await cacheUser(userId, safeUser, this.USER_CACHE_TTL);
-
-    logger.debug("User fetched from database and cached", { userId });
-
-    return safeUser;
-  }
-
   static async verifyEmail(token: string): Promise<{ message: string }> {
     if (!token) {
       logger.warn("Email verification attempted without token");
@@ -487,6 +461,228 @@ class AuthServices {
       userId: user.id,
       email: user.email,
     });
+  }
+
+  // ===================== UPDATE PROFILE =====================
+  static async updateProfile(
+    userId: string,
+    updateData: {
+      username?: string;
+      firstName?: string;
+      lastName?: string;
+      phoneNumber?: string;
+    }
+  ): Promise<User> {
+    const { username, phoneNumber } = updateData;
+
+    // Check if username or phoneNumber already exists (excluding current user)
+    if (username || phoneNumber) {
+      const existingUser = await Prisma.user.findFirst({
+        where: {
+          AND: [
+            { id: { not: userId } },
+            {
+              OR: [
+                ...(username ? [{ username }] : []),
+                ...(phoneNumber ? [{ phoneNumber }] : []),
+              ],
+            },
+          ],
+        },
+      });
+
+      if (existingUser) {
+        if (existingUser.username === username) {
+          throw ApiError.badRequest("Username already taken");
+        }
+        if (existingUser.phoneNumber === phoneNumber) {
+          throw ApiError.badRequest("Phone number already registered");
+        }
+      }
+    }
+
+    const updatedUser = await Prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      include: {
+        role: { select: { id: true, name: true, level: true } },
+        wallets: true,
+        parent: { select: { id: true, username: true } },
+        children: { select: { id: true, username: true } },
+      },
+    });
+
+    // Update cache
+    await cacheUser(
+      userId,
+      Helper.serializeUser(updatedUser),
+      this.USER_CACHE_TTL
+    );
+
+    await Prisma.auditLog.create({
+      data: {
+        userId,
+        action: "UPDATE_PROFILE",
+        metadata: { updatedFields: Object.keys(updateData) },
+      },
+    });
+
+    logger.info("Profile updated successfully", { userId });
+
+    return updatedUser;
+  }
+
+  // ===================== UPDATE CREDENTIALS =====================
+  static async updateCredentials(
+    userId: string,
+    credentialsData: {
+      currentPassword: string;
+      newPassword?: string;
+      currentTransactionPin?: string;
+      newTransactionPin?: string;
+    }
+  ): Promise<{ message: string }> {
+    const user = await Prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw ApiError.notFound("User not found");
+    }
+
+    // Verify current password
+    const isPasswordValid = await Helper.comparePassword(
+      credentialsData.currentPassword,
+      user.password
+    );
+
+    if (!isPasswordValid) {
+      throw ApiError.unauthorized("Current password is incorrect");
+    }
+
+    const updateData: any = {};
+
+    // Update password if provided
+    if (credentialsData.newPassword) {
+      updateData.password = await Helper.hashPassword(
+        credentialsData.newPassword
+      );
+      // Invalidate all sessions by clearing refresh token
+      updateData.refreshToken = null;
+    }
+
+    // Update transaction PIN if provided
+    if (credentialsData.newTransactionPin) {
+      if (!credentialsData.currentTransactionPin) {
+        throw ApiError.badRequest("Current transaction PIN is required");
+      }
+
+      // Verify current transaction PIN
+      const isPinValid = await Helper.comparePassword(
+        credentialsData.currentTransactionPin,
+        user.transactionPin
+      );
+
+      if (!isPinValid) {
+        throw ApiError.unauthorized("Current transaction PIN is incorrect");
+      }
+
+      updateData.transactionPin = await Helper.hashPassword(
+        credentialsData.newTransactionPin
+      );
+    }
+
+    await Prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    // Clear user cache
+    await invalidateUserCache(userId);
+
+    await Prisma.auditLog.create({
+      data: {
+        userId,
+        action: "UPDATE_CREDENTIALS",
+        metadata: {
+          updatedFields: [
+            ...(credentialsData.newPassword ? ["password"] : []),
+            ...(credentialsData.newTransactionPin ? ["transactionPin"] : []),
+          ],
+        },
+      },
+    });
+
+    logger.info("Credentials updated successfully", { userId });
+
+    return { message: "Credentials updated successfully" };
+  }
+
+  // ===================== UPDATE PROFILE IMAGE =====================
+  static async updateProfileImage(
+    userId: string,
+    profileImagePath: string
+  ): Promise<User> {
+    const user = await Prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        role: { select: { id: true, name: true, level: true } },
+        wallets: true,
+      },
+    });
+
+    if (!user) {
+      throw ApiError.notFound("User not found");
+    }
+
+    // Delete old profile image from S3 if exists
+    if (user.profileImage) {
+      try {
+        await S3Service.delete({ fileUrl: user.profileImage });
+      } catch (error) {
+        logger.error("Failed to delete old profile image", {
+          userId,
+          profileImage: user.profileImage,
+          error,
+        });
+      }
+    }
+
+    // Upload new profile image
+    const profileImageUrl =
+      (await S3Service.upload(profileImagePath, "profile")) ?? "";
+
+    Helper.deleteOldImage(profileImagePath);
+
+    const updatedUser = await Prisma.user.update({
+      where: { id: userId },
+      data: { profileImage: profileImageUrl },
+      include: {
+        role: { select: { id: true, name: true, level: true } },
+        wallets: true,
+        parent: { select: { id: true, username: true } },
+        children: { select: { id: true, username: true } },
+      },
+    });
+
+    // Update cache
+    await cacheUser(
+      userId,
+      Helper.serializeUser(updatedUser),
+      this.USER_CACHE_TTL
+    );
+
+    await Prisma.auditLog.create({
+      data: {
+        userId,
+        action: "UPDATE_PROFILE_IMAGE",
+        metadata: { newImage: profileImageUrl },
+      },
+    });
+
+    logger.info("Profile image updated successfully", { userId });
+
+    return updatedUser;
   }
 }
 

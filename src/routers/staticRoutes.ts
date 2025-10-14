@@ -13,7 +13,7 @@ import roleRoutes from "./role.routes.js";
 import serviceRoutes from "./service.routes.js";
 // import systemSettingRoutes from "./systemSetting.routes.js";
 import transactionRoutes from "./transaction.routes.js";
-// import userRoutes from "./user.routes.js";
+import userRoutes from "./user.routes.js";
 // import walletRoutes from "./wallet.routes.js";
 import apiRoutes from "./api.routes.js";
 import walletRoutes from "./wallet.routes.js";
@@ -34,7 +34,7 @@ export function StaticRoutes(app: any) {
   app.use("/api/v1/services", serviceRoutes);
   // app.use("api/v1/system-setting", systemSettingRoutes);
   app.use("/api/v1/transactions", transactionRoutes);
-  // app.use("api/v1/users", userRoutes);
+  app.use("/api/v1/users", userRoutes);
   // app.use("api/v1/wallets", walletRoutes);
   app.use("/api/v1/api-keys", apiRoutes);
   app.use("/api/v1/wallets", walletRoutes);

@@ -20,7 +20,8 @@ class AuthValidationSchemas {
           .url("Invalid image URL")
           .refine((url) => /\.(jpg|jpeg|png|webp)$/i.test(url), {
             message: "Profile must be an image (jpeg, jpg, png, webp)",
-          }),
+          })
+          .optional(),
         email: z.string().email("Invalid email address"),
         phoneNumber: z
           .string()
@@ -58,6 +59,94 @@ class AuthValidationSchemas {
       newPassword: z
         .string()
         .min(8, "Password must be at least 8 characters long"),
+    });
+  }
+
+  static get updateProfile() {
+    return z.object({
+      username: z
+        .string()
+        .min(3, "Username must be at least 3 characters")
+        .max(30, "Username cannot exceed 30 characters")
+        .regex(
+          /^[a-zA-Z0-9_]+$/,
+          "Username can only contain letters, numbers, and underscores"
+        )
+        .transform((val) => val.trim())
+        .optional(),
+      firstName: z.string().min(1, "First name is required").optional(),
+      lastName: z.string().min(1, "Last name is required").optional(),
+      phoneNumber: z
+        .string()
+        .regex(/^\d{10}$/, "Phone number must be 10 digits")
+        .optional(),
+    });
+  }
+
+  static get updateCredentials() {
+    return z
+      .object({
+        currentPassword: z.string().min(1, "Current password is required"),
+        newPassword: z
+          .string()
+          .min(8, "Password must be at least 8 characters")
+          .optional(),
+        confirmNewPassword: z.string().optional(),
+        currentTransactionPin: z
+          .string()
+          .regex(/^\d{4,6}$/, "Current transaction PIN must be 4-6 digits")
+          .optional(),
+        newTransactionPin: z
+          .string()
+          .regex(/^\d{4,6}$/, "New transaction PIN must be 4-6 digits")
+          .optional(),
+        confirmNewTransactionPin: z.string().optional(),
+      })
+      .refine(
+        (data) => {
+          if (
+            data.newPassword &&
+            data.newPassword !== data.confirmNewPassword
+          ) {
+            return false;
+          }
+          return true;
+        },
+        {
+          message: "New passwords do not match",
+          path: ["confirmNewPassword"],
+        }
+      )
+      .refine(
+        (data) => {
+          if (
+            data.newTransactionPin &&
+            data.newTransactionPin !== data.confirmNewTransactionPin
+          ) {
+            return false;
+          }
+          return true;
+        },
+        {
+          message: "New transaction PINs do not match",
+          path: ["confirmNewTransactionPin"],
+        }
+      )
+      .refine(
+        (data) => {
+          // At least one update should be requested
+          return data.newPassword || data.newTransactionPin;
+        },
+        {
+          message:
+            "Either new password or new transaction PIN must be provided",
+        }
+      );
+  }
+
+  static get updateProfileImage() {
+    return z.object({
+      // This schema is mainly for validation, file handling is done by multer
     });
   }
 }

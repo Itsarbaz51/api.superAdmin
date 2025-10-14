@@ -24,8 +24,16 @@ class AuthController {
       throw ApiError.internal("Parent id is missing");
     }
 
+    const data: any = { ...req.body };
+
+    if (req.file) {
+      data.profileImage = req.file.path;
+    } else {
+      data.profileImage = "";
+    }
+
     const { user, accessToken } = await AuthServices.register({
-      ...req.body,
+      ...data,
       parentId: userId,
     });
 
@@ -154,23 +162,6 @@ class AuthController {
     return res.status(200).json(ApiResponse.success(null, result.message, 200));
   });
 
-  static getUserById = asyncHandler(async (req: Request, res: Response) => {
-    const userId = req.params.id ?? req.user?.id;
-
-    if (!userId) {
-      logger.warn("Get user attempted without user ID");
-      throw ApiError.badRequest("userId required");
-    }
-
-    const user = await AuthServices.getUserById(userId);
-
-    logger.debug("User data fetched", { userId });
-
-    return res
-      .status(200)
-      .json(ApiResponse.success({ user }, "User fetched", 200));
-  });
-
   static verifyEmail = asyncHandler(async (req: Request, res: Response) => {
     const { token } = req.query;
 
@@ -185,6 +176,89 @@ class AuthController {
 
     return res.status(200).json(ApiResponse.success(null, result.message, 200));
   });
+
+  static updateProfile = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw ApiError.unauthorized("User not authenticated");
+    }
+
+    const updateData = req.body;
+    const user = await AuthServices.updateProfile(userId, updateData);
+
+    const safeUser = Helper.serializeUser(user);
+
+    logger.info("User profile updated successfully", { userId });
+
+    return res
+      .status(200)
+      .json(
+        ApiResponse.success(
+          { user: safeUser },
+          "Profile updated successfully",
+          200
+        )
+      );
+  });
+
+  static updateCredentials = asyncHandler(
+    async (req: Request, res: Response) => {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw ApiError.unauthorized("User not authenticated");
+      }
+
+      const credentialsData = req.body;
+      const result = await AuthServices.updateCredentials(
+        userId,
+        credentialsData
+      );
+
+      // Clear cookies if password was changed (since refresh token is invalidated)
+      if (credentialsData.newPassword) {
+        res.clearCookie("accessToken", cookieOptions);
+        res.clearCookie("refreshToken", cookieOptions);
+      }
+
+      logger.info("User credentials updated successfully", { userId });
+
+      return res
+        .status(200)
+        .json(ApiResponse.success(null, result.message, 200));
+    }
+  );
+
+  static updateProfileImage = asyncHandler(
+    async (req: Request, res: Response) => {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw ApiError.unauthorized("User not authenticated");
+      }
+
+      if (!req.file) {
+        throw ApiError.badRequest("Profile image is required");
+      }
+
+      const user = await AuthServices.updateProfileImage(userId, req.file.path);
+
+      const safeUser = Helper.serializeUser(user);
+
+      logger.info("User profile image updated successfully", { userId });
+
+      return res
+        .status(200)
+        .json(
+          ApiResponse.success(
+            { user: safeUser },
+            "Profile image updated successfully",
+            200
+          )
+        );
+    }
+  );
 }
 
 export default AuthController;

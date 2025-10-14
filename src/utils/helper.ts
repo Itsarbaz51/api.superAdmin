@@ -8,6 +8,7 @@ import type { JwtInput, JwtPayload } from "../types/auth.types.js";
 import axios from "axios";
 import type { Request } from "express";
 import crypto from "crypto";
+import fs from "fs";
 
 class Helper {
   static async hashPassword(password: string): Promise<string> {
@@ -119,8 +120,22 @@ class Helper {
 
     return ip;
   }
+
   static hashData(data: string): string {
     return crypto.createHash("sha256").update(data).digest("hex");
+  }
+
+  static deleteOldImage(oldImagePath: string) {
+    if (fs.existsSync(oldImagePath)) {
+      try {
+        fs.unlinkSync(oldImagePath);
+        console.log("Local image deleted successfully::", oldImagePath);
+      } catch (err: any) {
+        console.error("Error deleting local image:", err.message);
+      }
+    } else {
+      console.log("No local image to delete at:", oldImagePath);
+    }
   }
 }
 

@@ -3,11 +3,13 @@ import AuthController from "../controllers/auth.controller.js";
 import AuthMiddleware from "../middlewares/auth.middleware.js";
 import { validateRequest } from "../middlewares/validateRequest.js";
 import AuthValidationSchemas from "../validations/authValidation.schemas.js";
+import upload from "../middlewares/multer.middleware.js";
 
 const authRoutes = Router();
 
 authRoutes.post(
   "/register",
+  upload.single("profileImage"),
   AuthMiddleware.isAuthenticated,
   AuthMiddleware.authorizeRoles(["SUPER ADMIN"]),
   validateRequest(AuthValidationSchemas.register),
@@ -46,10 +48,26 @@ authRoutes.post(
 );
 authRoutes.get("/verify-email", AuthController.verifyEmail);
 
-authRoutes.get(
-  "/users/:id",
+authRoutes.put(
+  "/profile",
   AuthMiddleware.isAuthenticated,
-  AuthController.getUserById
+  validateRequest(AuthValidationSchemas.updateProfile),
+  AuthController.updateProfile
+);
+
+authRoutes.put(
+  "/credentials",
+  AuthMiddleware.isAuthenticated,
+  validateRequest(AuthValidationSchemas.updateCredentials),
+  AuthController.updateCredentials
+);
+
+authRoutes.put(
+  "/profile-image",
+  AuthMiddleware.isAuthenticated,
+  upload.single("profileImage"),
+  validateRequest(AuthValidationSchemas.updateProfileImage),
+  AuthController.updateProfileImage
 );
 
 export default authRoutes;
