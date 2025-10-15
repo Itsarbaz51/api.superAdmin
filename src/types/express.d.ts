@@ -7,6 +7,7 @@ declare module "express" {
       id: string;
       email: string;
       role: string;
+      roleLevel?: number;
     };
   }
 }

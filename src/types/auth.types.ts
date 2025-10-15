@@ -13,6 +13,7 @@ export interface AuthRequest extends Request {
     id: string;
     email: string;
     role: string;
+    roleLevel?: number;
   };
 }
 
@@ -86,6 +87,7 @@ export interface JwtInput {
   id: string;
   email: string;
   role: string;
+  roleLevel: number;
 }
 
 export interface JwtPayload extends JwtInput {

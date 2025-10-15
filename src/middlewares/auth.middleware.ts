@@ -32,6 +32,7 @@ class AuthMiddleware {
           role: {
             select: {
               name: true,
+              level: true
             },
           },
         },
@@ -45,6 +46,7 @@ class AuthMiddleware {
         id: userExists.id,
         email: userExists.email,
         role: userExists.role.name,
+        roleLevel: userExists.role.level
       };
 
       return next();
