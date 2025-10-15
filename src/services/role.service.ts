@@ -1,75 +1,60 @@
 import Prisma from "../db/db.js";
 import { ApiError } from "../utils/ApiError.js";
-import type { 
-  RoleCreatePayload, 
-  RoleDTO, 
-  RoleUpdatePayload 
+import type {
+  RoleCreatePayload,
+  RoleDTO,
+  RoleUpdatePayload,
 } from "../types/role.types.js";
 
 class RoleServices {
   static async index(options: {
-    page: number;
-    limit: number;
     search?: string;
+    currentUserRoleLevel?: number;
   }): Promise<{
     roles: RoleDTO[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
   }> {
-    const { page, limit, search } = options;
-    const skip = (page - 1) * limit;
+    const { search, currentUserRoleLevel } = options;
 
-    const where = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { description: { contains: search, mode: 'insensitive' as const } },
-          ],
-        }
-      : {};
+    const where: any = {};
 
-    const [roles, total] = await Promise.all([
-      Prisma.role.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { level: 'asc' },
-        include: {
-          createdByUser: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            },
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    if (typeof currentUserRoleLevel === "number") {
+      where.level = { gt: currentUserRoleLevel };
+    }
+
+    const roles = await Prisma.role.findMany({
+      where,
+      orderBy: { level: "asc" },
+      include: {
+        createdByUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
           },
         },
-      }),
-      Prisma.role.count({ where }),
-    ]);
+      },
+    });
 
-    const roleDTOs: RoleDTO[] = roles.map(role => ({
+    const roleDTOs: RoleDTO[] = roles.map((role) => ({
       id: role.id,
       name: role.name,
       level: role.level,
       description: role.description,
-      createdBy: role.createdBy || '',
+      createdBy: role.createdBy || "",
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
     }));
 
     return {
       roles: roleDTOs,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
     };
   }
 
@@ -106,7 +91,7 @@ class RoleServices {
       name: role.name,
       level: role.level,
       description: role.description,
-      createdBy: role.createdBy || '',
+      createdBy: role.createdBy || "",
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
     };
@@ -216,7 +201,7 @@ class RoleServices {
       name: role.name,
       level: role.level,
       description: role.description,
-      createdBy: role.createdBy || '',
+      createdBy: role.createdBy || "",
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
     };
@@ -226,7 +211,7 @@ class RoleServices {
 
   static async destroy(id: string): Promise<boolean> {
     // Check if role exists
-    const existingRole = await Prisma.role.findUnique({ 
+    const existingRole = await Prisma.role.findUnique({
       where: { id },
       include: {
         users: {

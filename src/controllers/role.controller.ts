@@ -6,21 +6,17 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 class RoleController {
   static index = asyncHandler(async (req: Request, res: Response) => {
-    const userRole = req?.user?.role;
-
-    if (userRole !== "SUPER ADMIN") {
-      throw ApiError.forbidden("Insufficient permissions");
-    }
-
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const userRoleLevel = req?.user?.roleLevel;
     const search = req.query.search as string;
 
-    const roles = await RoleServices.index({
-      page,
-      limit,
+    const options = {
       search,
-    });
+      ...(typeof userRoleLevel === "number" && {
+        currentUserRoleLevel: userRoleLevel,
+      }),
+    };
+
+    const roles = await RoleServices.index(options);
 
     return res
       .status(200)
