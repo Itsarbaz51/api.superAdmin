@@ -7,10 +7,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 class RoleController {
   static index = asyncHandler(async (req: Request, res: Response) => {
     const userRoleLevel = req?.user?.roleLevel;
-    const search = req.query.search as string;
 
     const options = {
-      search,
       ...(typeof userRoleLevel === "number" && {
         currentUserRoleLevel: userRoleLevel,
       }),

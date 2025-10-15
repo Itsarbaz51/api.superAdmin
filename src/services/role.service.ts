@@ -8,21 +8,13 @@ import type {
 
 class RoleServices {
   static async index(options: {
-    search?: string;
     currentUserRoleLevel?: number;
   }): Promise<{
     roles: RoleDTO[];
   }> {
-    const { search, currentUserRoleLevel } = options;
+    const { currentUserRoleLevel } = options;
 
     const where: any = {};
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-      ];
-    }
 
     if (typeof currentUserRoleLevel === "number") {
       where.level = { gt: currentUserRoleLevel };
