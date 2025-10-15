@@ -4,6 +4,7 @@ import KycServices from "../services/kyc.service.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import type { BusinessKycUploadInput } from "../types/kyc.types.js";
+import Helper from "../utils/helper.js";
 
 class UserKycController {
   static index = asyncHandler(async (req: Request, res: Response) => {
@@ -91,7 +92,7 @@ class UserKycController {
     const userId = req.user?.id;
     if (!userId) throw ApiError.internal("User ID not found in request");
 
-    const { id } = req.params; // KYC record ID to update
+    const { id } = req.params;
     if (!id) throw ApiError.badRequest("KYC ID is required in params");
 
     const files = req.files as {
@@ -106,7 +107,6 @@ class UserKycController {
     const addressProofFile = files.addressProofFile?.[0];
     const photo = files.photo?.[0];
 
-    // Partial update — files are optional
     const updateData: any = {
       ...req.body,
       userId,
@@ -144,21 +144,34 @@ class BusinessKycController {
       throw ApiError.internal("User ID not found in request");
     }
 
-    const { status, page = 1, limit = 10, sort = "desc" } = req.body;
+    // Accept from body or query
+    const {
+      status = "ALL",
+      page = 1,
+      limit = 10,
+      sort = "desc",
+    } = req.body || req.query;
+
+    // Ensure numbers for page and limit
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+    const sortOrder = sort === "asc" ? "asc" : "desc";
 
     const allKyc = await KycServices.indexBusinessKyc({
       userId,
       status,
-      page,
-      limit,
-      sort,
+      page: pageNum,
+      limit: limitNum,
+      sort: sortOrder,
     });
+
+    const safeallKyc = Helper.serializeUser(allKyc);
 
     return res
       .status(200)
       .json(
         ApiResponse.success(
-          allKyc,
+          safeallKyc,
           "Business KYC list fetched successfully",
           200
         )
@@ -228,9 +241,8 @@ class BusinessKycController {
     const userId = req.user?.id;
     if (!userId) throw ApiError.internal("User ID not found in request");
 
-    const { businessKycId } = req.body;
-    if (!businessKycId)
-      throw ApiError.badRequest("Business KYC ID is required");
+    const { id } = req.params;
+    if (!id) throw ApiError.badRequest("Business KYC ID is required");
 
     const files = req.files as {
       panFile?: Express.Multer.File[];
@@ -242,7 +254,6 @@ class BusinessKycController {
       directorShareholding?: Express.Multer.File[];
     };
 
-    // Get individual files (optional uploads)
     const panFile = files?.panFile?.[0];
     const gstFile = files?.gstFile?.[0];
     const brDoc = files?.brDoc?.[0];
@@ -251,10 +262,10 @@ class BusinessKycController {
     const aoaFile = files?.aoaFile?.[0];
     const directorShareholding = files?.directorShareholding?.[0];
 
-    // Prepare update data
     const updateData: any = {
       ...req.body,
       userId,
+      id,
       panFile,
       gstFile,
       brDoc,
@@ -270,7 +281,6 @@ class BusinessKycController {
         : undefined,
     };
 
-    // Call service
     const updatedKyc = await KycServices.updateBusinessKyc(updateData);
 
     return res

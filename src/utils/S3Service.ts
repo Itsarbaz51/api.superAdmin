@@ -28,6 +28,7 @@ export type UploadCategory =
   | "user-kyc"
   | "business-kyc"
   | "bankdoc"
+  | "bank-icon"
   | "service-icons"
   | "system-setting";
 

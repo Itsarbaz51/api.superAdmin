@@ -23,7 +23,13 @@ export class BankController {
   });
 
   static store = asyncHandler(async (req: Request, res: Response) => {
-    const bank = await BankService.store(req.body);
+    const bankData = {
+      ...req.body,
+      bankIcon: req.file?.path,
+    };
+
+    const bank = await BankService.store(bankData);
+
     return res
       .status(201)
       .json(ApiResponse.success(bank, "Bank created successfully", 201));
@@ -33,7 +39,13 @@ export class BankController {
     const { id } = req.params;
     if (!id) throw ApiError.badRequest("ID missing");
 
-    const bank = await BankService.update(id, req.body);
+    const updateData = {
+      ...req.body,
+      bankIcon: req.file,
+    };
+
+    const bank = await BankService.update(id, updateData);
+
     return res
       .status(200)
       .json(ApiResponse.success(bank, "Bank updated successfully", 200));
@@ -43,8 +55,8 @@ export class BankController {
     const { id } = req.params;
     if (!id) throw ApiError.badRequest("ID missing");
 
-    if (!id) throw ApiError.badRequest("ID missing");
     const result = await BankService.destroy(id);
+
     return res
       .status(200)
       .json(ApiResponse.success(result, "Bank deleted successfully", 200));
@@ -58,7 +70,27 @@ export class AddBankController {
     const userId = req.user?.id;
     if (!userId) throw ApiError.internal("User ID not found in request");
 
-    const data = await BankDetailService.index(userId);
+    const { isVerified, page = "1", limit = "10", sort = "desc" } = req.body;
+
+    const params: {
+      userId: string;
+      isVerified?: boolean;
+      page?: number;
+      limit?: number;
+      sort?: string;
+    } = {
+      userId,
+      page: Number(page),
+      limit: Number(limit),
+      sort: sort as string,
+    };
+
+    if (typeof isVerified === "boolean") {
+      params.isVerified = isVerified;
+    }
+
+    const data = await BankDetailService.index(params);
+
     return res
       .status(200)
       .json(
@@ -73,8 +105,6 @@ export class AddBankController {
     const { id } = req.params;
     if (!id) throw ApiError.badRequest("ID missing");
 
-    if (!id) throw ApiError.internal("Bank detail ID is required");
-
     const data = await BankDetailService.show(id, userId);
     return res
       .status(200)
@@ -85,10 +115,11 @@ export class AddBankController {
     const userId = req.user?.id;
     if (!userId) throw ApiError.internal("User ID not found in request");
 
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const file = req.file as Express.Multer.File | undefined;
+
     const data = await BankDetailService.store({
       ...req.body,
-      bankProofFile: files?.bankProofFile?.[0],
+      bankProofFile: file, // ✅ correct reference
       userId,
     });
 

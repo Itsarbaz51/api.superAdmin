@@ -1,7 +1,7 @@
 export interface SystemSettingInput {
   companyName: string;
-  companyLogo: string;
-  favIcon: string;
+  companyLogo?: string;
+  favIcon?: string;
   phoneNumber: string;
   whtsappNumber: string;
   companyEmail: string;

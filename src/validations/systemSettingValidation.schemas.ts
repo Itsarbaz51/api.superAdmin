@@ -1,17 +1,6 @@
 import { z } from "zod";
 
-// File schemas
-const requiredFileSchema = z
-  .any()
-  .refine((file) => !!file, "File is required")
-  .refine(
-    (file) =>
-      ["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(
-        file.mimetype
-      ),
-    "Only image files are allowed"
-  );
-
+// File validation
 const optionalFileSchema = z
   .any()
   .optional()
@@ -25,8 +14,7 @@ const optionalFileSchema = z
   )
   .transform((file) => (file ? file : null));
 
-class SystemSettingValidationSchemas {
-  // Create schema
+export default class SystemSettingValidationSchemas {
   static get createSchema() {
     return z.object({
       companyName: z.string().min(2, "Company name is required"),
@@ -43,10 +31,7 @@ class SystemSettingValidationSchemas {
     });
   }
 
-  // Update schema (all fields optional)
   static get updateSchema() {
     return this.createSchema.partial();
   }
 }
-
-export default SystemSettingValidationSchemas;

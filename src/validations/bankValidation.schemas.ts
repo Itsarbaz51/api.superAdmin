@@ -1,8 +1,6 @@
 import { z } from "zod";
-import { AccountType } from "@prisma/client";
 
 class BankValidationSchemas {
-  // ✅ Bank create schema
   static get BankSchema() {
     return z.object({
       bankName: z.string().min(2, "Bank name is required"),
@@ -13,12 +11,10 @@ class BankValidationSchemas {
     });
   }
 
-  // ✅ Bank update schema
   static get BankUpdateSchema() {
     return this.BankSchema.partial();
   }
 
-  // ✅ User Bank Detail create schema
   static get BankDetailSchema() {
     return z.object({
       accountHolder: z.string().min(3, "Account holder name is required"),
@@ -30,24 +26,15 @@ class BankValidationSchemas {
         .string()
         .min(10, "Phone number must be at least 10 digits")
         .max(15, "Phone number can't exceed 15 digits"),
-      accountType: AccountType,
+      accountType: z.enum(["PERSONAL", "BUSINESS"]),
       bankId: z.string().uuid("Invalid bank ID"),
-      isPrimary: z.boolean().optional(),
+      isPrimary: z.coerce.boolean().optional(),
+      bankProofFile: z.string().optional(),
     });
   }
 
-  // ✅ User Bank Detail update schema
   static get BankDetailUpdateSchema() {
     return this.BankDetailSchema.partial();
-  }
-
-  // ✅ List banks / details (for pagination)
-  static get ListBankSchema() {
-    return z.object({
-      page: z.number().optional().default(1),
-      limit: z.number().optional().default(10),
-      sort: z.enum(["asc", "desc"]).optional().default("desc"),
-    });
   }
 }
 

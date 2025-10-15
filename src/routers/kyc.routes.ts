@@ -63,7 +63,7 @@ kycRoutes.post(
 kycRoutes.get(
   "/business-kyc-show/:id",
   AuthMiddleware.isAuthenticated,
-  UserKycController.show
+  BusinessKycController.show
 );
 kycRoutes.post(
   "/business-kyc-store",

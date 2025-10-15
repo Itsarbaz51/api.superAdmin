@@ -9,7 +9,7 @@ class AddressController {
   static show = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     if (!id) {
-      throw ApiError.badRequest("Invalid request", ["Address ID is required"]);
+      throw ApiError.badRequest("Address ID is required");
     }
     const dbShowData = await AddressServices.showAddress(id);
     res
@@ -19,11 +19,10 @@ class AddressController {
       );
   });
   static store = asyncHandler(async (req: Request, res: Response) => {
-    const validatedData = await AddressValidationSchemas.Address.parseAsync(
-      req.body
-    );
-
-    const dbStoreData = await AddressServices.storeUserAddress(validatedData);
+    const dbStoreData = await AddressServices.storeUserAddress(req.body);
+    if (!dbStoreData) {
+      throw ApiError.internal("Failed to create address");
+    }
     res
       .status(201)
       .json(
@@ -105,9 +104,11 @@ class StateController {
   });
   static destroy = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
+    
     if (!id) {
-      throw ApiError.badRequest("Invalid request", ["State ID is required"]);
+      throw ApiError.badRequest("State ID is required");
     }
+
     const dbDeleteData = await AddressServices.deleteState(id);
     res
       .status(201)

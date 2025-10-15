@@ -33,7 +33,7 @@ bankRoutes.post(
   "/store",
   AuthMiddleware.isAuthenticated,
   AuthMiddleware.authorizeRoles(["ADMIN", "SUPER ADMIN"]),
-  upload.fields([{ name: "bankIcon", maxCount: 1 }]),
+  upload.single("bankIcon"),
   validateRequest(BankValidationSchemas.BankSchema),
   BankController.store
 );
@@ -43,7 +43,7 @@ bankRoutes.put(
   "/update/:id",
   AuthMiddleware.isAuthenticated,
   AuthMiddleware.authorizeRoles(["ADMIN", "SUPER ADMIN"]),
-  upload.fields([{ name: "bankIcon", maxCount: 1 }]),
+  upload.single("bankIcon"),
   validateRequest(BankValidationSchemas.BankUpdateSchema),
   BankController.update
 );
@@ -59,38 +59,40 @@ bankRoutes.delete(
 // ===================== USER BANK ROUTES =====================
 
 // List user’s added banks
-bankRoutes.get(
-  "/user-bank-list",
+bankRoutes.post(
+  "/bank-list",
   AuthMiddleware.isAuthenticated,
   AddBankController.index
 );
 
 // Show user’s specific bank
 bankRoutes.get(
-  "/user-bank-show/:id",
+  "/bank-show/:id",
   AuthMiddleware.isAuthenticated,
   AddBankController.show
 );
 
 // Add new bank detail
 bankRoutes.post(
-  "/store",
-  validateRequest(BankValidationSchemas.BankSchema),
-  BankController.store
+  "/store-bank",
+  AuthMiddleware.isAuthenticated,
+  upload.single("bankProofFile"),
+  validateRequest(BankValidationSchemas.BankDetailSchema),
+  AddBankController.store
 );
 
 // Update user bank detail
 bankRoutes.put(
-  "/user-bank-update/:id",
+  "/bank-update/:id",
   AuthMiddleware.isAuthenticated,
-  upload.fields([{ name: "bankProofFile", maxCount: 1 }]),
+  upload.single("bankProofFile"),
   validateRequest(BankValidationSchemas.BankDetailUpdateSchema),
   AddBankController.update
 );
 
 // Delete user bank
 bankRoutes.delete(
-  "/user-bank-delete/:id",
+  "/bank-delete/:id",
   AuthMiddleware.isAuthenticated,
   AddBankController.destroy
 );

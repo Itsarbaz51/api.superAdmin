@@ -76,7 +76,7 @@ class KycValidationSchemas {
   }
   static get ListkycSchema() {
     return z.object({
-      status: z.enum(["VERIFIED", "REJECTED", "PENDING"]).optional(),
+      status: z.enum(["VERIFIED", "REJECTED", "PENDING", "ALL"]).optional(),
       page: z.number().optional().default(1),
       limit: z.number().optional().default(10),
       sort: z.enum(["asc", "desc"]).optional().default("desc"),
