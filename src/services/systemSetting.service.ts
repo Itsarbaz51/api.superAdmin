@@ -4,23 +4,24 @@ import type {
   SystemSetting,
 } from "../types/systemSetting.types.js";
 import { ApiError } from "../utils/ApiError.js";
+import Helper from "../utils/helper.js";
 import S3Service from "../utils/S3Service.js";
 
 class SystemSettingService {
-  private static mapToSystemSetting(setting: any): SystemSetting {
+  private static mapToSystemSetting(record: any): SystemSetting {
     return {
-      userId: setting.userId ?? "",
-      companyName: setting.companyName ?? "",
-      companyLogo: setting.companyLogo ?? "",
-      favIcon: setting.favIcon ?? "",
-      phoneNumber: setting.phoneNumber ?? "",
-      whtsappNumber: setting.whtsappNumber ?? "",
-      companyEmail: setting.companyEmail ?? "",
-      facebookUrl: setting.facebookUrl ?? "",
-      instagramUrl: setting.instagramUrl ?? "",
-      twitterUrl: setting.twitterUrl ?? "",
-      linkedinUrl: setting.linkedinUrl ?? "",
-      websiteUrl: setting.websiteUrl ?? "",
+      userId: record.userId,
+      companyName: record.companyName,
+      companyLogo: record.companyLogo,
+      favIcon: record.favIcon,
+      phoneNumber: record.phoneNumber,
+      whtsappNumber: record.whtsappNumber,
+      companyEmail: record.companyEmail,
+      facebookUrl: record.facebookUrl,
+      instagramUrl: record.instagramUrl,
+      twitterUrl: record.twitterUrl,
+      linkedinUrl: record.linkedinUrl,
+      websiteUrl: record.websiteUrl,
     };
   }
 
@@ -28,44 +29,54 @@ class SystemSettingService {
     data: SystemSettingInput,
     userId: string
   ): Promise<SystemSetting> {
-    const userExists = await Prisma.systemSetting.findFirst({
-      where: { userId },
-    });
-    if (userExists)
-      throw ApiError.conflict("System setting already exists for this user");
+    try {
+      // Check if system setting already exists
+      const existing = await Prisma.systemSetting.findFirst({
+        where: { userId },
+      });
+      if (existing) {
+        throw ApiError.conflict("System setting already exists for this user");
+      }
 
-    let companyLogoUrl = "";
-    let favIconUrl = "";
+      // Upload files if provided
+      const companyLogoUrl = data.companyLogo
+        ? await S3Service.upload(data.companyLogo, "system-setting")
+        : "";
+      const favIconUrl = data.favIcon
+        ? await S3Service.upload(data.favIcon, "system-setting")
+        : "";
 
-    if (data.companyLogo) {
-      companyLogoUrl =
-        (await S3Service.upload(data.companyLogo, "system-setting")) ?? "";
+      const payload = {
+        userId,
+        companyName: data.companyName,
+        companyLogo: companyLogoUrl as string,
+        favIcon: favIconUrl as string,
+        phoneNumber: data.phoneNumber,
+        whtsappNumber: data.whtsappNumber,
+        companyEmail: data.companyEmail,
+        facebookUrl: data.facebookUrl || "",
+        instagramUrl: data.instagramUrl || "",
+        twitterUrl: data.twitterUrl || "",
+        linkedinUrl: data.linkedinUrl || "",
+        websiteUrl: data.websiteUrl || "",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const created = await Prisma.systemSetting.create({ data: payload });
+
+      if (!created) throw ApiError.internal("Failed to create system setting");
+
+      return this.mapToSystemSetting(created);
+    } catch (error) {
+      console.error("SystemSettingService.create failed:", error);
+      throw error;
+    } finally {
+      const allFiles = [data.companyLogo, data.favIcon].filter(Boolean);
+      for (const filePath of allFiles) {
+        await Helper.deleteOldImage(filePath as string);
+      }
     }
-
-    if (data.favIcon) {
-      favIconUrl =
-        (await S3Service.upload(data.favIcon, "system-setting")) ?? "";
-    }
-
-    const payload = {
-      userId,
-      companyName: data.companyName,
-      companyLogo: companyLogoUrl,
-      favIcon: favIconUrl,
-      phoneNumber: data.phoneNumber,
-      whtsappNumber: data.whtsappNumber,
-      companyEmail: data.companyEmail,
-      facebookUrl: data.facebookUrl || "",
-      instagramUrl: data.instagramUrl || "",
-      twitterUrl: data.twitterUrl || "",
-      linkedinUrl: data.linkedinUrl || "",
-      websiteUrl: data.websiteUrl || "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    const created = await Prisma.systemSetting.create({ data: payload });
-    return this.mapToSystemSetting(created);
   }
 
   static async update(
@@ -75,26 +86,29 @@ class SystemSettingService {
     const existing = await Prisma.systemSetting.findUnique({ where: { id } });
     if (!existing) throw ApiError.notFound("System setting not found");
 
+    // Handle file uploads
     let companyLogoUrl = existing.companyLogo;
     let favIconUrl = existing.favIcon;
 
-    // Upload new files if provided, delete old ones
     if (data.companyLogo) {
-      if (existing.companyLogo)
+      if (existing.companyLogo) {
         await S3Service.delete({ fileUrl: existing.companyLogo });
+      }
       companyLogoUrl =
         (await S3Service.upload(data.companyLogo, "system-setting")) ??
         companyLogoUrl;
     }
 
     if (data.favIcon) {
-      if (existing.favIcon)
+      if (existing.favIcon) {
         await S3Service.delete({ fileUrl: existing.favIcon });
+      }
       favIconUrl =
         (await S3Service.upload(data.favIcon, "system-setting")) ?? favIconUrl;
     }
 
-    const payload = {
+    // Build payload – only include provided fields
+    const payload: Partial<SystemSettingInput> & { updatedAt: Date } = {
       ...data,
       companyLogo: companyLogoUrl,
       favIcon: favIconUrl,
@@ -105,6 +119,7 @@ class SystemSettingService {
       where: { id },
       data: payload,
     });
+
     return this.mapToSystemSetting(updated);
   }
 

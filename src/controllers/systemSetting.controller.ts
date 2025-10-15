@@ -3,14 +3,16 @@ import asyncHandler from "../utils/AsyncHandler.js";
 import SystemSettingService from "../services/systemSetting.service.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import type { SystemSettingInput } from "../types/systemSetting.types.js";
 
 class SystemSettingController {
   static create = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.id;
     if (!userId) throw ApiError.unauthorized("User not authenticated");
 
-    const data: any = { ...req.body };
+    const data: SystemSettingInput = { ...req.body };
 
+    // Handle uploaded files (Multer)
     if (req.files) {
       const files = req.files as {
         [fieldname: string]: Express.Multer.File[];
@@ -30,8 +32,9 @@ class SystemSettingController {
     const { id } = req.params;
     if (!id) throw ApiError.badRequest("System setting ID is required");
 
-    const data: any = { ...req.body };
+    const data: Partial<SystemSettingInput> = { ...req.body };
 
+    // Handle uploaded files
     if (req.files) {
       const files = req.files as {
         [fieldname: string]: Express.Multer.File[];
