@@ -7,7 +7,9 @@ import type {
 } from "../types/role.types.js";
 
 class RoleServices {
-  static async index(options: { currentUserRoleLevel?: number }): Promise<{
+  static async index(options: {
+    currentUserRoleLevel?: number;
+  }): Promise<{
     roles: RoleDTO[];
   }> {
     const { currentUserRoleLevel } = options;

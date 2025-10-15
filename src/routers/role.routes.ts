@@ -9,7 +9,7 @@ const roleRoutes = Router();
 roleRoutes.get(
   "/",
   AuthMiddleware.isAuthenticated,
-  AuthMiddleware.authorizeRoles(["SUPER ADMIN"]),
+  // AuthMiddleware.authorizeRoles(["SUPER ADMIN"]),
   RoleController.index
 );
 

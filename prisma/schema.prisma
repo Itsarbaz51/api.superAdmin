@@ -185,6 +185,8 @@ model User {
   // Indexes for performance
   @@index([parentId])
   @@index([hierarchyLevel])
+  @@index([email, status])
+  @@index([phoneNumber, status])
   @@map("users")
 }
 
@@ -218,6 +220,7 @@ model UserKyc {
   updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
+  @@index([userId, status])
   @@map("user_kyc")
 }
 
@@ -234,10 +237,8 @@ model BusinessKyc {
   addressId String  @map("address_id")
   address   Address @relation(fields: [addressId], references: [id])
 
-  // panNumber String @unique @map("pan_number") @db.VarChar(10)
   panFile String @map("pan_file")
 
-  // gstNumber String @unique @map("gst_number") @db.VarChar(15)
   gstFile String @map("gst_file")
 
   // --------- Proprietorship Specific ---------
@@ -263,6 +264,7 @@ model BusinessKyc {
   userKycs UserKyc[]
 
   @@unique([userId])
+  @@index([userId, status])
   @@map("business_kycs")
 }
 
@@ -288,6 +290,8 @@ model BankDetail {
   updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
+  @@index([userId, isPrimary])
+  @@index([accountNumber, bankId])
   @@map("bank_details")
 }
 
@@ -357,7 +361,7 @@ model Wallet {
   userId    String    @map("user_id")
   user      User      @relation(fields: [userId], references: [id])
   balance   BigInt    @default(0)
-  currency  Currency  @default(INR) // ✅ Changed from String → Enum
+  currency  Currency  @default(INR)
   isPrimary Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -367,6 +371,7 @@ model Wallet {
   transactions  Transaction[]
 
   @@unique([userId])
+  @@index([userId, isPrimary])
   @@map("wallets")
 }
 
@@ -408,6 +413,7 @@ model CommissionSetting {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([scope, roleId, targetUserId, serviceId, channel])
+  @@index([serviceId, isActive, effectiveFrom])
   @@map("commission_settings")
 }
 
@@ -416,8 +422,8 @@ model CommissionEarning {
   userId String @map("user_id")
   user   User   @relation("CommissionEarningToUser", fields: [userId], references: [id])
 
-  fromUserId String @map("from_user_id")
-  fromUser   User   @relation("CommissionEarningFromUser", fields: [fromUserId], references: [id])
+  fromUserId String? @map("from_user_id")
+  fromUser   User?   @relation("CommissionEarningFromUser", fields: [fromUserId], references: [id])
 
   serviceId String  @map("service_id")
   service   Service @relation(fields: [serviceId], references: [id])
@@ -427,15 +433,16 @@ model CommissionEarning {
   commissionAmount BigInt         @map("commission_amount")
   commissionType   CommissionType @map("commission_type")
   level            Int
-
-  createdBy     String @map("created_by")
-  createdByUser User   @relation("CommissionEarningCreatedBy", fields: [createdBy], references: [id])
+  metadata         Json?
+  createdBy        String         @map("created_by")
+  createdByUser    User           @relation("CommissionEarningCreatedBy", fields: [createdBy], references: [id])
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([transactionId, userId])
   @@index([serviceId, createdAt])
+  @@index([userId, createdAt])
   @@map("commission_earnings")
 }
 
@@ -496,9 +503,10 @@ model ApiKey {
   updatedAt DateTime @updatedAt
 
   services     ApiKeyService[]
-  ipWhitelists ApiKeyIpWhitelist[] // ✅ new relation
+  ipWhitelists ApiKeyIpWhitelist[]
 
   @@index([userId])
+  @@index([isActive, expiresAt])
   @@map("api_keys")
 }
 
@@ -527,7 +535,7 @@ model ApiKeyIpWhitelist {
 
   createdAt DateTime @default(now())
 
-  @@unique([apiKeyId, ip]) // prevent duplicates
+  @@unique([apiKeyId, ip])
   @@index([apiKeyId])
   @@map("api_key_ip_whitelists")
 }
@@ -554,8 +562,8 @@ model ProviderRateCard {
   provider      ServiceProvider @relation(fields: [providerId], references: [id])
   serviceId     String          @map("service_id")
   service       Service         @relation(fields: [serviceId], references: [id])
-  fixedCharge   BigInt? // paise
-  percentCharge Float? // percent (use Decimal if needed)
+  fixedCharge   BigInt?
+  percentCharge Float?
   minCharge     BigInt?
   maxCharge     BigInt?
   effectiveFrom DateTime
@@ -564,6 +572,7 @@ model ProviderRateCard {
   updatedAt     DateTime        @updatedAt
 
   @@unique([providerId, serviceId, effectiveFrom], name: "providerId_serviceId_effectiveFrom")
+  @@index([serviceId, effectiveFrom])
   @@map("provider_ratecards")
 }
 
@@ -657,6 +666,7 @@ model LoginLogs {
 
   @@index([userId])
   @@index([latitude, longitude])
+  @@index([createdAt])
   @@map("login_logs")
 }
 
@@ -665,7 +675,7 @@ model LoginLogs {
 model Transaction {
   id               String           @id @default(uuid())
   referenceId      String?          @map("reference_id")
-  externalRefId    String?          @map("external_ref_id") // ✅ Added for external provider reference
+  externalRefId    String?          @map("external_ref_id")
   idempotencyKey   String?          @map("idempotency_key")
   userId           String           @map("user_id")
   user             User             @relation(fields: [userId], references: [id])
@@ -689,14 +699,17 @@ model Transaction {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  ledgerEntries LedgerEntry[]
-  Refund        Refund[]
+  ledgerEntries    LedgerEntry[]
+  Refund           Refund[]
+  bbpsTransactions BBPSTransaction[]
 
   @@index([userId])
   @@index([idempotencyKey])
   @@index([status, createdAt])
   @@index([serviceId, createdAt])
   @@index([externalRefId])
+  @@index([userId, serviceId, createdAt])
+  @@index([externalRefId, providerId])
   @@map("transactions")
 }
 
@@ -707,7 +720,7 @@ model LedgerEntry {
   walletId       String?         @map("wallet_id")
   wallet         Wallet?         @relation(fields: [walletId], references: [id])
   entryType      LedgerEntryType @map("entry_type")
-  referenceType  ReferenceType?  @map("reference_type") // ✅ new field
+  referenceType  ReferenceType?  @map("reference_type")
   amount         BigInt
   runningBalance BigInt          @map("running_balance")
   narration      String          @db.Text
@@ -718,6 +731,7 @@ model LedgerEntry {
 
   @@index([transactionId])
   @@index([walletId, createdAt])
+  @@index([createdBy, createdAt])
   @@map("ledger_entries")
 }
 
@@ -725,10 +739,11 @@ model IdempotencyKey {
   key       String   @id
   userId    String?  @map("user_id")
   createdAt DateTime @default(now()) @map("created_at")
-  expiresAt DateTime @map("expired_at") // required to allow TTL cleanup
+  expiresAt DateTime @map("expired_at")
   used      Boolean  @default(false)
   meta      Json?
 
+  @@index([userId, createdAt])
   @@map("idempotency_keys")
 }
 
@@ -743,6 +758,8 @@ model Refund {
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
+  @@index([transactionId])
+  @@index([status, createdAt])
   @@map("refunds")
 }
 
@@ -750,15 +767,17 @@ model AuditLog {
   id         String   @id @default(uuid())
   userId     String?
   action     String
-  entityType String? // e.g. "User", "Transaction", "Service"
-  entityId   String? // related entity record ID
-  ipAddress  String? // request origin
+  entityType String?
+  entityId   String?
+  ipAddress  String?
   metadata   Json?
   createdAt  DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id])
 
   @@index([entityType, entityId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -781,5 +800,90 @@ model PiiConsent {
   createdAt  DateTime @default(now())
 
   @@unique([userId, piiType, scope])
+  @@index([userId, expiresAt])
   @@map("pii_consents")
+}
+
+// ==================== BBPS MODELS ====================
+
+model BBPSBiller {
+  id              String   @id @default(uuid())
+  billerId        String   @unique @map("biller_id")
+  billerName      String   @map("biller_name")
+  category        String
+  validationRules Json?    @map("validation_rules")
+  paymentModes    Json?    @map("payment_modes")
+  isActive        Boolean  @default(true) @map("is_active")
+  supportEmail    String?  @map("support_email")
+  supportPhone    String?  @map("support_phone")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  bbpsTransactions BBPSTransaction[]
+  billerCategory   String?
+  validationParams Json?
+  billFetchParams  Json?
+  region           String?
+  billerLogo       String? @map("biller_logo")
+
+  @@index([category, isActive])
+  @@index([billerName])
+  @@map("bbps_billers")
+}
+
+model BBPSTransaction {
+  id                String          @id @default(uuid())
+  transactionId     String          @map("transaction_id")
+  transaction       Transaction     @relation(fields: [transactionId], references: [id])
+  billerId          String          @map("biller_id")
+  biller            BBPSBiller      @relation(fields: [billerId], references: [id])
+  consumerNumber    String          @map("consumer_number")
+  consumerName      String?         @map("consumer_name")
+  billAmount        Decimal         @map("bill_amount") @db.Decimal(12, 2)
+  dueAmount         Decimal         @map("due_amount") @db.Decimal(12, 2)
+  dueDate           DateTime?       @map("due_date")
+  billDate          DateTime?       @map("bill_date")
+  billNumber        String?         @map("bill_number")
+  billPeriod        String?         @map("bill_period")
+  bbpsTxnId         String?         @unique @map("bbps_txn_id")
+  billFetchResponse Json?           @map("bill_fetch_response")
+  paymentResponse   Json?           @map("payment_response")
+  complaintId       String?         @map("complaint_id")
+  additionalParams  Json?           @map("additional_params")
+  validationResponse Json?          @map("validation_response")
+  billStatus        String?         @map("bill_status")
+  billCycle         String?         @map("bill_cycle")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  complaints BBPSComplaint[]
+
+  @@index([consumerNumber, billerId])
+  @@index([billStatus, dueDate])
+  @@index([createdAt])
+  @@index([consumerNumber])
+  @@index([billerId, consumerNumber])
+  @@index([bbpsTxnId])
+  @@index([transactionId])
+  @@map("bbps_transactions")
+}
+
+model BBPSComplaint {
+  id                String          @id @default(uuid())
+  bbpsTransactionId String          @map("bbps_transaction_id")
+  bbpsTransaction   BBPSTransaction @relation(fields: [bbpsTransactionId], references: [id])
+  complaintId       String?         @unique @map("complaint_id")
+  category          String
+  subCategory       String?         @map("sub_category")
+  details           String          @db.Text
+  status            String          @default("PENDING")
+  resolution        String?         @db.Text
+  resolvedAt        DateTime?       @map("resolved_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  @@index([complaintId])
+  @@index([status])
+  @@index([bbpsTransactionId])
+  @@map("bbps_complaints")
 }
