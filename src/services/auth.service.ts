@@ -146,6 +146,7 @@ class AuthServices {
         id: user.id,
         email: user.email,
         role: user.role.name,
+        roleLevel: user.role.level,
       });
 
       // Cache user
@@ -208,12 +209,14 @@ class AuthServices {
       id: user.id,
       email: user.email,
       role: user.role!.name,
+      roleLevel: user.role!.level,
     });
 
     const refreshToken = Helper.generateRefreshToken({
       id: user.id,
       email: user.email,
       role: user.role!.name,
+      roleLevel: user.role!.level,
     });
 
     await Prisma.user.update({
@@ -308,11 +311,13 @@ class AuthServices {
       id: user.id,
       email: user.email,
       role: user.role.name,
+      roleLevel: user.role.level,
     });
     const newRefreshToken = Helper.generateRefreshToken({
       id: user.id,
       email: user.email,
       role: user.role.name,
+      roleLevel: user.role.level,
     });
 
     await Prisma.user.update({
